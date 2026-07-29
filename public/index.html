@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DMS Fleet Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-hover: #1c2430;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --green: #3fb950;
+    --green-bg: #123822;
+    --amber: #d29922;
+    --amber-bg: #3b2f0e;
+    --red: #f85149;
+    --red-bg: #3d1418;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.2px;
+  }
+  h1 span { color: var(--text-secondary); font-weight: 400; }
+  .meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 26px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    color: var(--text-primary);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--panel-hover); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--mono);
+  }
+  .badge.online { background: var(--green-bg); color: var(--green); }
+  .badge.offline { background: var(--red-bg); color: var(--red); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .bar-track {
+    width: 60px;
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .bar-fill { height: 100%; }
+  .bar-fill.green { background: var(--green); }
+  .bar-fill.amber { background: var(--amber); }
+  .bar-fill.red { background: var(--red); }
+
+  .empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+  .empty-sub { font-size: 12px; }
+
+  footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>DMS Fleet <span>/ device dashboard</span></h1>
+      <div class="meta" id="last-updated">loading…</div>
+    </header>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Total devices</div>
+        <div class="stat-value" id="stat-total">–</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Online</div>
+        <div class="stat-value green" id="stat-online">–</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Offline</div>
+        <div class="stat-value red" id="stat-offline">–</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Avg battery</div>
+        <div class="stat-value" id="stat-battery">–</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Device</th>
+            <th>Device ID</th>
+            <th>Battery</th>
+            <th>Free storage</th>
+            <th>App version</th>
+            <th>Last seen</th>
+          </tr>
+        </thead>
+        <tbody id="device-rows"></tbody>
+      </table>
+      <div class="empty" id="empty-state" style="display:none;">
+        <div class="empty-title">No devices yet</div>
+        <div class="empty-sub">Once your Android agent sends its first heartbeat, it'll show up here.</div>
+      </div>
+    </div>
+
+    <footer>Auto-refreshes every 15 seconds</footer>
+  </div>
+
+<script>
+  const ONLINE_THRESHOLD_MINUTES = 20;
+
+  function formatBytes(bytes) {
+    if (bytes == null) return '—';
+    const gb = bytes / (1024 ** 3);
+    return gb.toFixed(1) + ' GB';
+  }
+
+  function timeAgo(isoString) {
+    if (!isoString) return '—';
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  }
+
+  function isOnline(isoString) {
+    if (!isoString) return false;
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    return diffMs / 60000 < ONLINE_THRESHOLD_MINUTES;
+  }
+
+  function batteryBarClass(pct) {
+    if (pct == null || pct < 0) return 'red';
+    if (pct < 20) return 'red';
+    if (pct < 50) return 'amber';
+    return 'green';
+  }
+
+  async function loadDevices() {
+    try {
+      const res = await fetch('/api/devices');
+      const data = await res.json();
+      const devices = data.devices || [];
+
+      const tbody = document.getElementById('device-rows');
+      const emptyState = document.getElementById('empty-state');
+      tbody.innerHTML = '';
+
+      if (devices.length === 0) {
+        emptyState.style.display = 'block';
+      } else {
+        emptyState.style.display = 'none';
+      }
+
+      let onlineCount = 0;
+      let batterySum = 0;
+      let batteryCount = 0;
+
+      devices.forEach(d => {
+        const online = isOnline(d.last_seen);
+        if (online) onlineCount++;
+        if (d.battery != null && d.battery >= 0) {
+          batterySum += d.battery;
+          batteryCount++;
+        }
+
+        const battery = (d.battery != null && d.battery >= 0) ? d.battery : null;
+        const barClass = batteryBarClass(battery);
+        const batteryLabel = battery == null ? '—' : battery + '%';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <span class="badge ${online ? 'online' : 'offline'}">
+              <span class="dot"></span>${online ? 'online' : 'offline'}
+            </span>
+          </td>
+          <td>${d.name || '—'}</td>
+          <td style="color: var(--text-secondary);">${d.device_id}</td>
+          <td>
+            <span class="bar-track"><span class="bar-fill ${barClass}" style="width:${battery ?? 0}%"></span></span>${batteryLabel}
+          </td>
+          <td>${formatBytes(d.storage_free)}</td>
+          <td>${d.app_version || '—'}</td>
+          <td style="color: var(--text-secondary);">${timeAgo(d.last_seen)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('stat-total').textContent = devices.length;
+      document.getElementById('stat-online').textContent = onlineCount;
+      document.getElementById('stat-offline').textContent = devices.length - onlineCount;
+      document.getElementById('stat-battery').textContent =
+        batteryCount > 0 ? Math.round(batterySum / batteryCount) + '%' : '—';
+
+      document.getElementById('last-updated').textContent =
+        'updated ' + new Date().toLocaleTimeString();
+    } catch (err) {
+      document.getElementById('last-updated').textContent = 'failed to load — retrying…';
+    }
+  }
+
+  loadDevices();
+  setInterval(loadDevices, 15000);
+</script>
+</body>
+</html>
