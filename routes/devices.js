@@ -4,7 +4,9 @@ const { pool } = require("../db/database");
 
 // POST /api/devices/heartbeat
 // Called by the Android agent every 15 minutes (or on-demand for testing).
-// Upserts the device's latest status and logs a history row.
+// Upserts the device's latest status, logs a history row, and hands back any
+// commands that are waiting for this device (marking them "delivered" so
+// they aren't handed out twice).
 router.post("/heartbeat", async (req, res) => {
   const { device_id, name, battery, storage_free, app_version } = req.body;
 
@@ -32,7 +34,19 @@ router.post("/heartbeat", async (req, res) => {
       [device_id, battery ?? null, storage_free ?? null]
     );
 
-    res.json({ ok: true });
+    // Pick up anything queued for this device and mark it delivered in the
+    // same round trip, so the agent can execute + ack it right away.
+    const pending = await pool.query(
+      `
+      UPDATE commands
+      SET status = 'delivered', delivered_at = NOW()
+      WHERE device_id = $1 AND status = 'pending'
+      RETURNING id, command_type, payload
+      `,
+      [device_id]
+    );
+
+    res.json({ ok: true, commands: pending.rows });
   } catch (err) {
     console.error("heartbeat error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
@@ -40,10 +54,16 @@ router.post("/heartbeat", async (req, res) => {
 });
 
 // GET /api/devices
-// Lists every known device, most recently seen first. Powers the dashboard.
+// Lists every known device, most recently seen first, with group name
+// resolved for the sidebar/grouping UI.
 router.get("/", async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM devices ORDER BY last_seen DESC`);
+    const result = await pool.query(`
+      SELECT d.*, g.name AS group_name
+      FROM devices d
+      LEFT JOIN groups g ON g.id = d.group_id
+      ORDER BY d.last_seen DESC NULLS LAST
+    `);
     res.json({ ok: true, devices: result.rows });
   } catch (err) {
     console.error("list devices error:", err);
@@ -52,11 +72,17 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/devices/:device_id
-// Single device detail, plus its recent heartbeat history.
+// Single device detail, its recent heartbeat history, and its recent
+// command history (for the detail panel's activity log).
 router.get("/:device_id", async (req, res) => {
   try {
     const deviceResult = await pool.query(
-      `SELECT * FROM devices WHERE device_id = $1`,
+      `
+      SELECT d.*, g.name AS group_name
+      FROM devices d
+      LEFT JOIN groups g ON g.id = d.group_id
+      WHERE d.device_id = $1
+      `,
       [req.params.device_id]
     );
 
@@ -75,9 +101,128 @@ router.get("/:device_id", async (req, res) => {
       [req.params.device_id]
     );
 
-    res.json({ ok: true, device: deviceResult.rows[0], history: historyResult.rows });
+    const commandsResult = await pool.query(
+      `
+      SELECT id, command_type, payload, status, result, created_at, delivered_at, completed_at
+      FROM commands
+      WHERE device_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20
+      `,
+      [req.params.device_id]
+    );
+
+    res.json({
+      ok: true,
+      device: deviceResult.rows[0],
+      history: historyResult.rows,
+      commands: commandsResult.rows,
+    });
   } catch (err) {
     console.error("get device error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// PATCH /api/devices/:device_id
+// Currently just used to (re)assign a device to a group. group_id: null moves
+// it back to "Uncategorized".
+router.patch("/:device_id", async (req, res) => {
+  const { group_id } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE devices SET group_id = $1 WHERE device_id = $2 RETURNING *`,
+      [group_id ?? null, req.params.device_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+
+    res.json({ ok: true, device: result.rows[0] });
+  } catch (err) {
+    console.error("update device error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/:device_id/commands
+// The dashboard calls this to queue a new command for a device. It sits as
+// "pending" until the device's next heartbeat picks it up.
+router.post("/:device_id/commands", async (req, res) => {
+  const { command_type, payload } = req.body;
+
+  if (!command_type) {
+    return res.status(400).json({ ok: false, error: "command_type is required" });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO commands (device_id, command_type, payload)
+      VALUES ($1, $2, $3)
+      RETURNING id, device_id, command_type, payload, status, created_at
+      `,
+      [req.params.device_id, command_type, payload ? JSON.stringify(payload) : null]
+    );
+
+    res.status(201).json({ ok: true, command: result.rows[0] });
+  } catch (err) {
+    console.error("create command error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/devices/:device_id/commands
+// Command history for a device (used to refresh the detail panel's log).
+router.get("/:device_id/commands", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, command_type, payload, status, result, created_at, delivered_at, completed_at
+      FROM commands
+      WHERE device_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20
+      `,
+      [req.params.device_id]
+    );
+    res.json({ ok: true, commands: result.rows });
+  } catch (err) {
+    console.error("list commands error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/:device_id/commands/:command_id/ack
+// The agent calls this after it has executed a delivered command, reporting
+// whether it succeeded.
+router.post("/:device_id/commands/:command_id/ack", async (req, res) => {
+  const { status, result } = req.body;
+
+  if (!["done", "failed"].includes(status)) {
+    return res.status(400).json({ ok: false, error: "status must be 'done' or 'failed'" });
+  }
+
+  try {
+    const updated = await pool.query(
+      `
+      UPDATE commands
+      SET status = $1, result = $2, completed_at = NOW()
+      WHERE id = $3 AND device_id = $4
+      RETURNING id
+      `,
+      [status, result ?? null, req.params.command_id, req.params.device_id]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "command not found" });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("ack command error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
   }
 });

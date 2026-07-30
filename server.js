@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { initDb } = require("./db/database");
 const devicesRouter = require("./routes/devices");
+const groupsRouter = require("./routes/groups");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,15 +11,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serves public/index.html (the fleet dashboard) at the root URL.
 app.use(express.static("public"));
 
-// Health check, moved off "/" now that the dashboard lives there.
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "dms-backend", status: "running" });
 });
 
 app.use("/api/devices", devicesRouter);
+app.use("/api/groups", groupsRouter);
 
 async function start() {
   await initDb();

@@ -1,191 +1,360 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DMS Fleet Dashboard</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-hover: #1c2430;
-    --border: #30363d;
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --text-muted: #6e7681;
-    --green: #3fb950;
-    --green-bg: #123822;
-    --amber: #d29922;
-    --amber-bg: #3b2f0e;
-    --red: #f85149;
-    --red-bg: #3d1418;
-    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    padding: 32px 24px 64px;
-  }
-  .wrap { max-width: 1100px; margin: 0 auto; }
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  h1 {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0;
-    letter-spacing: -0.2px;
-  }
-  h1 span { color: var(--text-secondary); font-weight: 400; }
-  .meta {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-family: var(--mono);
-  }
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-  .stat {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-  }
-  .stat-label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 6px;
-  }
-  .stat-value {
-    font-size: 26px;
-    font-weight: 600;
-    font-family: var(--mono);
-  }
-  .stat-value.green { color: var(--green); }
-  .stat-value.red { color: var(--red); }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DMS Fleet Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-hover: #1c2430;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent: #d29922;
+      --accent-bg: #3b2f0e;
+      --green: #3fb950;
+      --green-bg: #123822;
+      --amber: #d29922;
+      --amber-bg: #3b2f0e;
+      --red: #f85149;
+      --red-bg: #3d1418;
+      --blue: #58a6ff;
+      --blue-bg: #0d2440;
+      --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 32px 24px 64px;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: -0.2px;
+    }
+    h1 span { color: var(--text-secondary); font-weight: 400; }
+    .meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
 
-  .table-wrap {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th {
-    text-align: left;
-    padding: 12px 16px;
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    border-bottom: 1px solid var(--border);
-  }
-  td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--mono);
-    color: var(--text-primary);
-  }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--panel-hover); }
+    /* ---- group filter bar ---- */
+    .groupbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .chip:hover { background: var(--panel-hover); color: var(--text-primary); }
+    .chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+    .chip .count { color: var(--text-muted); font-family: var(--mono); font-size: 11px; }
+    .chip.active .count { color: var(--accent); opacity: 0.8; }
+    .chip-add {
+      border-style: dashed;
+    }
 
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border-radius: 100px;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: var(--mono);
-  }
-  .badge.online { background: var(--green-bg); color: var(--green); }
-  .badge.offline { background: var(--red-bg); color: var(--red); }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    /* ---- two-pane layout ---- */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .layout.with-detail {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    }
 
-  .bar-track {
-    width: 60px;
-    height: 5px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 8px;
-  }
-  .bar-fill { height: 100%; }
-  .bar-fill.green { background: var(--green); }
-  .bar-fill.amber { background: var(--amber); }
-  .bar-fill.red { background: var(--red); }
+    .table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      color: var(--text-primary);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.device-row { cursor: pointer; }
+    tr.device-row:hover td { background: var(--panel-hover); }
+    tr.device-row.selected td { background: var(--blue-bg); }
 
-  .empty {
-    padding: 48px 16px;
-    text-align: center;
-    color: var(--text-muted);
-  }
-  .empty-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
-  .empty-sub { font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--mono);
+    }
+    .badge.online { background: var(--green-bg); color: var(--green); }
+    .badge.offline { background: var(--red-bg); color: var(--red); }
+    .badge.pending, .badge.delivered { background: var(--amber-bg); color: var(--amber); }
+    .badge.done { background: var(--green-bg); color: var(--green); }
+    .badge.failed { background: var(--red-bg); color: var(--red); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-  footer {
-    margin-top: 20px;
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-</style>
+    .bar-track {
+      width: 60px;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    .bar-fill { height: 100%; }
+    .bar-fill.green { background: var(--green); }
+    .bar-fill.amber { background: var(--amber); }
+    .bar-fill.red { background: var(--red); }
+
+    .empty {
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+    .empty-sub { font-size: 12px; }
+
+    /* ---- detail panel ---- */
+    .detail-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 20px 24px;
+      position: sticky;
+      top: 24px;
+    }
+    .detail-empty {
+      background: var(--panel);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .detail-header h2 {
+      font-size: 16px;
+      margin: 0 0 4px;
+      font-family: var(--mono);
+    }
+    .detail-header .sub { font-size: 12px; color: var(--text-muted); }
+    .close-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .close-btn:hover { background: var(--panel-hover); color: var(--text-primary); }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .info-grid .k { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .info-grid .v { font-family: var(--mono); margin-top: 2px; }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-secondary);
+      margin: 20px 0 10px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+    .field-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .field-row input, .field-row select {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .field-row input:focus, .field-row select:focus { outline: none; border-color: var(--blue); }
+    .btn {
+      background: var(--blue-bg);
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #113355; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.secondary { background: var(--panel-hover); color: var(--text-primary); border-color: var(--border); }
+    .btn.secondary:hover { background: #232b36; }
+
+    .group-assign { display: flex; gap: 8px; }
+
+    .cmd-log { font-size: 12.5px; }
+    .cmd-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cmd-row:last-child { border-bottom: none; }
+    .cmd-main { min-width: 0; }
+    .cmd-type { font-family: var(--mono); color: var(--text-primary); }
+    .cmd-note { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; overflow-wrap: anywhere; }
+    .cmd-time { color: var(--text-muted); font-family: var(--mono); font-size: 11px; flex-shrink: 0; }
+    .cmd-log-empty { color: var(--text-muted); font-size: 12.5px; padding: 8px 0; }
+
+    footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .layout.with-detail { grid-template-columns: 1fr; }
+      .detail-panel { position: static; }
+    }
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>DMS Fleet <span>/ device dashboard</span></h1>
-      <div class="meta" id="last-updated">loading…</div>
-    </header>
+<div class="wrap">
+  <header>
+    <h1>DMS Fleet <span>/ device dashboard</span></h1>
+    <div class="meta" id="last-updated">loading…</div>
+  </header>
 
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-label">Total devices</div>
-        <div class="stat-value" id="stat-total">–</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Online</div>
-        <div class="stat-value green" id="stat-online">–</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Offline</div>
-        <div class="stat-value red" id="stat-offline">–</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Avg battery</div>
-        <div class="stat-value" id="stat-battery">–</div>
-      </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Total devices</div>
+      <div class="stat-value" id="stat-total">–</div>
     </div>
+    <div class="stat">
+      <div class="stat-label">Online</div>
+      <div class="stat-value green" id="stat-online">–</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Offline</div>
+      <div class="stat-value red" id="stat-offline">–</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Avg battery</div>
+      <div class="stat-value" id="stat-battery">–</div>
+    </div>
+  </div>
 
+  <div class="groupbar" id="group-bar"></div>
+
+  <div class="layout" id="layout">
     <div class="table-wrap">
       <table>
         <thead>
-          <tr>
-            <th>Status</th>
-            <th>Device</th>
-            <th>Device ID</th>
-            <th>Battery</th>
-            <th>Free storage</th>
-            <th>App version</th>
-            <th>Last seen</th>
-          </tr>
+        <tr>
+          <th>Status</th>
+          <th>Device</th>
+          <th>Group</th>
+          <th>Battery</th>
+          <th>Free storage</th>
+          <th>Last seen</th>
+        </tr>
         </thead>
         <tbody id="device-rows"></tbody>
       </table>
@@ -195,11 +364,20 @@
       </div>
     </div>
 
-    <footer>Auto-refreshes every 15 seconds</footer>
+    <div id="detail-slot">
+      <div class="detail-empty">Select a device to view details and send commands.</div>
+    </div>
   </div>
+
+  <footer>Auto-refreshes every 15 seconds</footer>
+</div>
 
 <script>
   const ONLINE_THRESHOLD_MINUTES = 20;
+  let devices = [];
+  let groups = [];
+  let selectedDeviceId = null;
+  let activeGroupFilter = 'all'; // 'all' | 'uncategorized' | group id (number)
 
   function formatBytes(bytes) {
     if (bytes == null) return '—';
@@ -231,63 +409,33 @@
     return 'green';
   }
 
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // ---------------- data loading ----------------
+
+  async function loadGroups() {
+    try {
+      const res = await fetch('/api/groups');
+      const data = await res.json();
+      groups = data.groups || [];
+      renderGroupBar();
+    } catch (err) {
+      // Group bar just stays as-is on failure; devices list still works.
+    }
+  }
+
   async function loadDevices() {
     try {
       const res = await fetch('/api/devices');
       const data = await res.json();
-      const devices = data.devices || [];
-
-      const tbody = document.getElementById('device-rows');
-      const emptyState = document.getElementById('empty-state');
-      tbody.innerHTML = '';
-
-      if (devices.length === 0) {
-        emptyState.style.display = 'block';
-      } else {
-        emptyState.style.display = 'none';
-      }
-
-      let onlineCount = 0;
-      let batterySum = 0;
-      let batteryCount = 0;
-
-      devices.forEach(d => {
-        const online = isOnline(d.last_seen);
-        if (online) onlineCount++;
-        if (d.battery != null && d.battery >= 0) {
-          batterySum += d.battery;
-          batteryCount++;
-        }
-
-        const battery = (d.battery != null && d.battery >= 0) ? d.battery : null;
-        const barClass = batteryBarClass(battery);
-        const batteryLabel = battery == null ? '—' : battery + '%';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>
-            <span class="badge ${online ? 'online' : 'offline'}">
-              <span class="dot"></span>${online ? 'online' : 'offline'}
-            </span>
-          </td>
-          <td>${d.name || '—'}</td>
-          <td style="color: var(--text-secondary);">${d.device_id}</td>
-          <td>
-            <span class="bar-track"><span class="bar-fill ${barClass}" style="width:${battery ?? 0}%"></span></span>${batteryLabel}
-          </td>
-          <td>${formatBytes(d.storage_free)}</td>
-          <td>${d.app_version || '—'}</td>
-          <td style="color: var(--text-secondary);">${timeAgo(d.last_seen)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('stat-total').textContent = devices.length;
-      document.getElementById('stat-online').textContent = onlineCount;
-      document.getElementById('stat-offline').textContent = devices.length - onlineCount;
-      document.getElementById('stat-battery').textContent =
-        batteryCount > 0 ? Math.round(batterySum / batteryCount) + '%' : '—';
-
+      devices = data.devices || [];
+      renderStats();
+      renderGroupBar();
+      renderDeviceRows();
       document.getElementById('last-updated').textContent =
         'updated ' + new Date().toLocaleTimeString();
     } catch (err) {
@@ -295,8 +443,286 @@
     }
   }
 
-  loadDevices();
-  setInterval(loadDevices, 15000);
+  // ---------------- rendering: stats + group bar ----------------
+
+  function renderStats() {
+    let onlineCount = 0, batterySum = 0, batteryCount = 0;
+    devices.forEach(d => {
+      if (isOnline(d.last_seen)) onlineCount++;
+      if (d.battery != null && d.battery >= 0) { batterySum += d.battery; batteryCount++; }
+    });
+    document.getElementById('stat-total').textContent = devices.length;
+    document.getElementById('stat-online').textContent = onlineCount;
+    document.getElementById('stat-offline').textContent = devices.length - onlineCount;
+    document.getElementById('stat-battery').textContent =
+      batteryCount > 0 ? Math.round(batterySum / batteryCount) + '%' : '—';
+  }
+
+  function renderGroupBar() {
+    const bar = document.getElementById('group-bar');
+    const uncategorizedCount = devices.filter(d => !d.group_id).length;
+
+    let html = '';
+    html += chipHtml('all', 'All devices', devices.length, activeGroupFilter === 'all');
+    html += chipHtml('uncategorized', 'Uncategorized', uncategorizedCount, activeGroupFilter === 'uncategorized');
+    groups.forEach(g => {
+      html += chipHtml(g.id, g.name, g.device_count, activeGroupFilter === g.id);
+    });
+    html += `<div class="chip chip-add" onclick="createGroupPrompt()">+ New group</div>`;
+    bar.innerHTML = html;
+  }
+
+  function chipHtml(key, label, count, active) {
+    return `<div class="chip ${active ? 'active' : ''}" onclick="setGroupFilter('${key}')">
+      ${escapeHtml(label)} <span class="count">${count}</span>
+    </div>`;
+  }
+
+  function setGroupFilter(key) {
+    // chip keys come through as strings from the inline handler; group ids
+    // need to be compared as numbers against device.group_id.
+    const num = Number(key);
+    activeGroupFilter = Number.isNaN(num) ? key : num;
+    renderGroupBar();
+    renderDeviceRows();
+  }
+
+  async function createGroupPrompt() {
+    const name = prompt('New group name (e.g. "8th Floor", "Lobby Displays"):');
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Could not create group');
+        return;
+      }
+      await loadGroups();
+    } catch (err) {
+      alert('Could not reach the server.');
+    }
+  }
+
+  // ---------------- rendering: device table ----------------
+
+  function filteredDevices() {
+    if (activeGroupFilter === 'all') return devices;
+    if (activeGroupFilter === 'uncategorized') return devices.filter(d => !d.group_id);
+    return devices.filter(d => d.group_id === activeGroupFilter);
+  }
+
+  function renderDeviceRows() {
+    const tbody = document.getElementById('device-rows');
+    const emptyState = document.getElementById('empty-state');
+    const list = filteredDevices();
+    tbody.innerHTML = '';
+    emptyState.style.display = list.length === 0 ? 'block' : 'none';
+
+    list.forEach(d => {
+      const online = isOnline(d.last_seen);
+      const battery = (d.battery != null && d.battery >= 0) ? d.battery : null;
+      const barClass = batteryBarClass(battery);
+      const batteryLabel = battery == null ? '—' : battery + '%';
+
+      const tr = document.createElement('tr');
+      tr.className = 'device-row' + (d.device_id === selectedDeviceId ? ' selected' : '');
+      tr.onclick = () => selectDevice(d.device_id);
+      tr.innerHTML = `
+        <td>
+          <span class="badge ${online ? 'online' : 'offline'}">
+            <span class="dot"></span>${online ? 'online' : 'offline'}
+          </span>
+        </td>
+        <td>
+          ${escapeHtml(d.name || '—')}<br/>
+          <span style="color: var(--text-secondary); font-size: 11px;">${escapeHtml(d.device_id)}</span>
+        </td>
+        <td style="color: var(--text-secondary);">${escapeHtml(d.group_name || 'Uncategorized')}</td>
+        <td>
+          <span class="bar-track"><span class="bar-fill ${barClass}" style="width:${battery ?? 0}%"></span></span>${batteryLabel}
+        </td>
+        <td>${formatBytes(d.storage_free)}</td>
+        <td style="color: var(--text-secondary);">${timeAgo(d.last_seen)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---------------- detail panel ----------------
+
+  function selectDevice(deviceId) {
+    selectedDeviceId = deviceId;
+    document.getElementById('layout').classList.add('with-detail');
+    renderDeviceRows();
+    loadDetail(deviceId);
+  }
+
+  function closeDetail() {
+    selectedDeviceId = null;
+    document.getElementById('layout').classList.remove('with-detail');
+    document.getElementById('detail-slot').innerHTML =
+      '<div class="detail-empty">Select a device to view details and send commands.</div>';
+    renderDeviceRows();
+  }
+
+  async function loadDetail(deviceId) {
+    const slot = document.getElementById('detail-slot');
+    try {
+      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        slot.innerHTML = '<div class="detail-empty">Device not found.</div>';
+        return;
+      }
+      renderDetail(data.device, data.commands || []);
+    } catch (err) {
+      slot.innerHTML = '<div class="detail-empty">Could not load device detail.</div>';
+    }
+  }
+
+  function renderDetail(device, commands) {
+    const slot = document.getElementById('detail-slot');
+    const online = isOnline(device.last_seen);
+    const groupOptions = [`<option value="">Uncategorized</option>`]
+      .concat(groups.map(g => `<option value="${g.id}" ${g.id === device.group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`))
+      .join('');
+
+    slot.innerHTML = `
+      <div class="detail-panel">
+        <div class="detail-header">
+          <div>
+            <h2>${escapeHtml(device.name || device.device_id)}</h2>
+            <div class="sub">${escapeHtml(device.device_id)}</div>
+          </div>
+          <button class="close-btn" onclick="closeDetail()">✕</button>
+        </div>
+
+        <div class="info-grid">
+          <div><div class="k">Status</div><div class="v">
+            <span class="badge ${online ? 'online' : 'offline'}"><span class="dot"></span>${online ? 'online' : 'offline'}</span>
+          </div></div>
+          <div><div class="k">App version</div><div class="v">${escapeHtml(device.app_version || '—')}</div></div>
+          <div><div class="k">Battery</div><div class="v">${device.battery != null && device.battery >= 0 ? device.battery + '%' : '—'}</div></div>
+          <div><div class="k">Free storage</div><div class="v">${formatBytes(device.storage_free)}</div></div>
+          <div><div class="k">Last seen</div><div class="v">${timeAgo(device.last_seen)}</div></div>
+          <div><div class="k">Group</div><div class="v">${escapeHtml(device.group_name || 'Uncategorized')}</div></div>
+        </div>
+
+        <div class="section-title">Assign to group</div>
+        <div class="group-assign">
+          <select id="group-select">${groupOptions}</select>
+          <button class="btn secondary" onclick="assignGroup('${device.device_id}')">Save</button>
+        </div>
+
+        <div class="section-title">Send message</div>
+        <div class="field-row">
+          <input id="msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
+          <button class="btn" id="send-msg-btn" onclick="sendMessage('${device.device_id}')">Send</button>
+        </div>
+
+        <div class="section-title">Set report interval</div>
+        <div class="field-row">
+          <input id="interval-minutes" type="number" min="15" step="1" placeholder="minutes (min 15)" />
+          <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
+        </div>
+
+        <div class="section-title">Command history</div>
+        <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
+      </div>
+    `;
+  }
+
+  function commandLogHtml(commands) {
+    if (!commands.length) {
+      return '<div class="cmd-log-empty">No commands sent yet.</div>';
+    }
+    return commands.map(c => `
+      <div class="cmd-row">
+        <div class="cmd-main">
+          <span class="cmd-type">${escapeHtml(c.command_type)}</span>
+          <span class="badge ${c.status}" style="margin-left:8px;">${escapeHtml(c.status)}</span>
+          ${c.result ? `<div class="cmd-note">${escapeHtml(c.result)}</div>` : ''}
+        </div>
+        <div class="cmd-time">${timeAgo(c.created_at)}</div>
+      </div>
+    `).join('');
+  }
+
+  async function postCommand(deviceId, commandType, payload, btnId) {
+    const btn = btnId ? document.getElementById(btnId) : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+    try {
+      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}/commands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command_type: commandType, payload })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Could not queue command');
+        return;
+      }
+      // Command is queued as "pending" until the device's next heartbeat.
+      await loadDetail(deviceId);
+    } catch (err) {
+      alert('Could not reach the server.');
+    } finally {
+      if (btn) { btn.disabled = false; }
+    }
+  }
+
+  function sendMessage(deviceId) {
+    const input = document.getElementById('msg-text');
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    postCommand(deviceId, 'SHOW_MESSAGE', { text }, 'send-msg-btn').then(() => { input.value = ''; });
+  }
+
+  function sendInterval(deviceId) {
+    const input = document.getElementById('interval-minutes');
+    const minutes = parseInt(input.value, 10);
+    if (!minutes || minutes < 15) {
+      alert('Enter 15 or more minutes (WorkManager enforces a 15-minute floor).');
+      return;
+    }
+    postCommand(deviceId, 'SET_REPORT_INTERVAL', { minutes }, 'send-interval-btn');
+  }
+
+  async function assignGroup(deviceId) {
+    const select = document.getElementById('group-select');
+    const groupId = select.value ? Number(select.value) : null;
+    try {
+      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId })
+      });
+      if (!res.ok) {
+        alert('Could not update group.');
+        return;
+      }
+      await loadGroups();
+      await loadDevices();
+      await loadDetail(deviceId);
+    } catch (err) {
+      alert('Could not reach the server.');
+    }
+  }
+
+  // ---------------- boot ----------------
+
+  async function refreshAll() {
+    await loadGroups();
+    await loadDevices();
+    if (selectedDeviceId) await loadDetail(selectedDeviceId);
+  }
+
+  refreshAll();
+  setInterval(refreshAll, 15000);
 </script>
 </body>
 </html>

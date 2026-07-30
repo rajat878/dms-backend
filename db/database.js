@@ -25,6 +25,14 @@ const pool = new Pool({
 // Creates the schema if it doesn't exist yet. Safe to call on every boot.
 async function initDb() {
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS groups (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT UNIQUE NOT NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS devices (
       device_id     TEXT PRIMARY KEY,
       name          TEXT,
@@ -32,8 +40,14 @@ async function initDb() {
       storage_free  BIGINT,
       app_version   TEXT,
       last_seen     TIMESTAMPTZ,
+      group_id      INTEGER REFERENCES groups(id) ON DELETE SET NULL,
       created_at    TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Column add for databases created before groups existed.
+  await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL;
   `);
 
   await pool.query(`
@@ -44,6 +58,29 @@ async function initDb() {
       storage_free  BIGINT,
       received_at   TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // The command queue that makes control two-way. The dashboard inserts a
+  // row with status='pending'; the agent picks it up on its next heartbeat
+  // (status -> 'delivered'), executes it, then calls the ack endpoint
+  // (status -> 'done' or 'failed').
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS commands (
+      id            SERIAL PRIMARY KEY,
+      device_id     TEXT NOT NULL,
+      command_type  TEXT NOT NULL,
+      payload       JSONB,
+      status        TEXT NOT NULL DEFAULT 'pending',
+      result        TEXT,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      delivered_at  TIMESTAMPTZ,
+      completed_at  TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_commands_device_status
+      ON commands (device_id, status);
   `);
 }
 
