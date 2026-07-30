@@ -4,6 +4,7 @@ const cors = require("cors");
 const { initDb } = require("./db/database");
 const devicesRouter = require("./routes/devices");
 const groupsRouter = require("./routes/groups");
+const apksRouter = require("./routes/apks");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
 
 const app = express();
@@ -20,6 +21,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/devices", devicesRouter);
 app.use("/api/groups", groupsRouter);
+app.use("/api/apks", apksRouter);
 
 // GET /api/devices/alerts would collide with the /:device_id route in
 // devices.js (Express would treat "alerts" as a device_id), so this lives

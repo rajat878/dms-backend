@@ -740,6 +740,23 @@
           <button class="btn" id="send-openapp-btn" onclick="sendOpenApp('${device.device_id}')">Launch</button>
         </div>
 
+        <div class="section-title">Install app</div>
+        <div class="field-row">
+          <input id="apk-upload" type="file" accept=".apk" style="flex:1;" />
+          <button class="btn secondary" id="upload-apk-btn" onclick="uploadApk('${device.device_id}')">Upload</button>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <select id="apk-picker" onchange="document.getElementById('apk-url').value = this.value"></select>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <input id="apk-url" type="text" placeholder="or paste an APK URL directly" />
+          <button class="btn" id="send-install-btn" onclick="sendInstallApp('${device.device_id}')">Install</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Without Device Owner provisioning this shows the device's normal "Install unknown app?" prompt —
+          someone still has to tap it. With Device Owner it installs silently.
+        </div>
+
         <div class="section-title">Device control</div>
         <div class="field-row">
           <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
@@ -753,6 +770,8 @@
         <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
       </div>
     `;
+
+    populateApkPicker();
   }
 
   function commandLogHtml(commands) {
@@ -821,6 +840,65 @@
   function confirmReboot(deviceId) {
     if (!confirm('Reboot this device now? It will be unreachable until it finishes restarting.')) return;
     postCommand(deviceId, 'REBOOT', {}, 'send-reboot-btn');
+  }
+
+  function formatBytesShort(bytes) {
+    if (bytes == null) return '';
+    const mb = bytes / (1024 ** 2);
+    return mb >= 1 ? mb.toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
+  }
+
+  async function populateApkPicker() {
+    const select = document.getElementById('apk-picker');
+    if (!select) return;
+    try {
+      const res = await fetch('/api/apks');
+      const data = await res.json();
+      const apks = data.apks || [];
+      select.innerHTML = apks.length
+        ? [`<option value="">— choose a previously uploaded APK —</option>`]
+            .concat(apks.map(a => `<option value="${a.url}">${escapeHtml(a.filename)} (${formatBytesShort(a.size)})</option>`))
+            .join('')
+        : `<option value="">No APKs uploaded yet</option>`;
+    } catch (err) {
+      select.innerHTML = `<option value="">Could not load APK list</option>`;
+    }
+  }
+
+  async function uploadApk(deviceId) {
+    const input = document.getElementById('apk-upload');
+    const file = input.files[0];
+    if (!file) { alert('Choose a .apk file first.'); return; }
+
+    const btn = document.getElementById('upload-apk-btn');
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+
+    try {
+      const formData = new FormData();
+      formData.append('apk', file);
+      const res = await fetch('/api/apks', { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Upload failed');
+        return;
+      }
+      document.getElementById('apk-url').value = data.url;
+      input.value = '';
+      await populateApkPicker();
+    } catch (err) {
+      alert('Could not reach the server.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Upload';
+    }
+  }
+
+  function sendInstallApp(deviceId) {
+    const input = document.getElementById('apk-url');
+    const apkUrl = input.value.trim();
+    if (!apkUrl) { input.focus(); return; }
+    postCommand(deviceId, 'INSTALL_APP', { apk_url: apkUrl }, 'send-install-btn');
   }
 
   async function assignGroup(deviceId) {
