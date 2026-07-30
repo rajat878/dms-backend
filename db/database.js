@@ -49,7 +49,9 @@ async function initDb() {
   await pool.query(`
     ALTER TABLE devices ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL;
   `);
-
+await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS fcm_token TEXT;
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS heartbeat_log (
       id            SERIAL PRIMARY KEY,

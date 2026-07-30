@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { pool } = require("../db/database");
+const { pushCommand } = require("../firebase");
 
 // POST /api/devices/heartbeat
 // Called by the Android agent every 15 minutes (or on-demand for testing).
@@ -67,6 +68,33 @@ router.get("/", async (req, res) => {
     res.json({ ok: true, devices: result.rows });
   } catch (err) {
     console.error("list devices error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/:device_id/register-token
+// The Android app calls this on startup and whenever FCM issues a new
+// token, so the backend can push commands to it instantly instead of
+// waiting for the next heartbeat.
+router.post("/:device_id/register-token", async (req, res) => {
+  const { fcm_token } = req.body;
+
+  if (!fcm_token) {
+    return res.status(400).json({ ok: false, error: "fcm_token is required" });
+  }
+
+  try {
+    await pool.query(
+      `
+      INSERT INTO devices (device_id, fcm_token)
+      VALUES ($1, $2)
+      ON CONFLICT (device_id) DO UPDATE SET fcm_token = EXCLUDED.fcm_token
+      `,
+      [req.params.device_id, fcm_token]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("register-token error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
   }
 });
@@ -148,8 +176,11 @@ router.patch("/:device_id", async (req, res) => {
 });
 
 // POST /api/devices/:device_id/commands
-// The dashboard calls this to queue a new command for a device. It sits as
-// "pending" until the device's next heartbeat picks it up.
+// The dashboard calls this to queue a new command for a device. It's saved
+// as "pending" immediately, then pushed to the device instantly via FCM if
+// it has a registered token. If the push fails or no token is registered
+// yet, the command still sits in Postgres and gets picked up on the
+// device's next heartbeat regardless — so this never silently drops a command.
 router.post("/:device_id/commands", async (req, res) => {
   const { command_type, payload } = req.body;
 
@@ -167,7 +198,16 @@ router.post("/:device_id/commands", async (req, res) => {
       [req.params.device_id, command_type, payload ? JSON.stringify(payload) : null]
     );
 
-    res.status(201).json({ ok: true, command: result.rows[0] });
+    const command = result.rows[0];
+
+    // Fire-and-forget push — don't block the API response on it.
+    const deviceResult = await pool.query(
+      `SELECT fcm_token FROM devices WHERE device_id = $1`,
+      [req.params.device_id]
+    );
+    pushCommand(deviceResult.rows[0]?.fcm_token, command);
+
+    res.status(201).json({ ok: true, command });
   } catch (err) {
     console.error("create command error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
