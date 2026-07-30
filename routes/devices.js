@@ -72,6 +72,55 @@ router.get("/", async (req, res) => {
   }
 });
 
+// POST /api/devices/bulk-commands
+// Sends the same command to a set of devices in one request — used by the
+// dashboard's "send to this group / all devices" bulk-send box. Each
+// device still gets its own row in `commands` (independent status/history
+// in its detail panel) and its own FCM push, so one offline device can't
+// block delivery to the rest, and each is retried on its own next
+// heartbeat if the push doesn't land.
+router.post("/bulk-commands", async (req, res) => {
+  const { device_ids, command_type, payload } = req.body;
+
+  if (!Array.isArray(device_ids) || device_ids.length === 0) {
+    return res.status(400).json({ ok: false, error: "device_ids (non-empty array) is required" });
+  }
+  if (!command_type) {
+    return res.status(400).json({ ok: false, error: "command_type is required" });
+  }
+
+  try {
+    const devicesResult = await pool.query(
+      `SELECT device_id, fcm_token FROM devices WHERE device_id = ANY($1::text[])`,
+      [device_ids]
+    );
+
+    if (devicesResult.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "none of the given devices were found" });
+    }
+
+    const commands = [];
+    for (const device of devicesResult.rows) {
+      const result = await pool.query(
+        `
+        INSERT INTO commands (device_id, command_type, payload)
+        VALUES ($1, $2, $3)
+        RETURNING id, device_id, command_type, payload, status, created_at
+        `,
+        [device.device_id, command_type, payload ? JSON.stringify(payload) : null]
+      );
+      const command = result.rows[0];
+      commands.push(command);
+      pushCommand(device.fcm_token, command);
+    }
+
+    res.status(201).json({ ok: true, sent_to: commands.length, commands });
+  } catch (err) {
+    console.error("bulk command error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 // POST /api/devices/:device_id/register-token
 // The Android app calls this on startup and whenever FCM issues a new
 // token, so the backend can push commands to it instantly instead of
