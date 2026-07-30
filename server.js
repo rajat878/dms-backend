@@ -10,6 +10,13 @@ const { startAlertMonitor, getAllAlerts } = require("./alerts");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Render (and most PaaS hosts) terminate TLS at their own proxy and talk
+// plain HTTP to this process internally. Without this, req.protocol always
+// reports "http" even for https requests — which made apks.js build
+// http:// URLs for uploaded APKs, and Android refuses cleartext downloads
+// by default (API 28+), so INSTALL_APP failed at the download step.
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(express.json());
 

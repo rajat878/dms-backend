@@ -10,6 +10,14 @@ const router = express.Router();
 const APK_DIR = path.join(__dirname, "public", "apks");
 fs.mkdirSync(APK_DIR, { recursive: true });
 
+// Prefer an explicit override (set PUBLIC_BASE_URL if req.protocol/host
+// detection ever misbehaves behind a different proxy setup) — falls back
+// to building it from the request, which requires app.set("trust proxy", 1)
+// in server.js to correctly report "https" instead of "http".
+function baseUrl(req) {
+  return process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, APK_DIR),
   filename: (req, file, cb) => {
@@ -44,7 +52,7 @@ router.post("/", (req, res) => {
       return res.status(400).json({ ok: false, error: "apk file is required" });
     }
 
-    const url = `${req.protocol}://${req.get("host")}/apks/${req.file.filename}`;
+    const url = `${baseUrl(req)}/apks/${req.file.filename}`;
     res.status(201).json({
       ok: true,
       filename: req.file.filename,
@@ -69,7 +77,7 @@ router.get("/", (req, res) => {
           filename: f,
           size: stat.size,
           uploaded_at: stat.mtime,
-          url: `${req.protocol}://${req.get("host")}/apks/${f}`,
+          url: `${baseUrl(req)}/apks/${f}`,
         };
       })
       .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
