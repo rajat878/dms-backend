@@ -4,6 +4,7 @@ const cors = require("cors");
 const { initDb } = require("./db/database");
 const devicesRouter = require("./routes/devices");
 const groupsRouter = require("./routes/groups");
+const { startAlertMonitor, getAllAlerts } = require("./alerts");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,8 +21,21 @@ app.get("/api/health", (req, res) => {
 app.use("/api/devices", devicesRouter);
 app.use("/api/groups", groupsRouter);
 
+// GET /api/devices/alerts would collide with the /:device_id route in
+// devices.js (Express would treat "alerts" as a device_id), so this lives
+// at its own top-level path instead.
+app.get("/api/alerts", async (req, res) => {
+  try {
+    res.json({ ok: true, alerts: await getAllAlerts() });
+  } catch (err) {
+    console.error("alerts endpoint error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 async function start() {
   await initDb();
+  startAlertMonitor();
   app.listen(PORT, () => {
     console.log(`DMS backend listening on port ${PORT}`);
   });

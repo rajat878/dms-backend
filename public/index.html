@@ -81,6 +81,26 @@
     .stat-value.green { color: var(--green); }
     .stat-value.red { color: var(--red); }
 
+    #alerts-banner {
+      border: 1px solid var(--red);
+      background: var(--red-bg);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    #alerts-banner .alerts-title {
+      font-weight: 600;
+      color: var(--red);
+      margin-bottom: 4px;
+    }
+    #alerts-banner .alert-line {
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    #alerts-banner .alert-line b { color: var(--text-primary); font-weight: 500; }
+    #alerts-banner .alert-line:hover b { color: var(--blue); }
+
     /* ---- group filter bar ---- */
     .groupbar {
       display: flex;
@@ -338,6 +358,8 @@
     <h1>DMS Fleet <span>/ device dashboard</span></h1>
     <div class="meta" id="last-updated">loading…</div>
   </header>
+
+  <div id="alerts-banner" style="display:none;"></div>
 
   <div class="stats">
     <div class="stat">
@@ -712,6 +734,21 @@
           <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
         </div>
 
+        <div class="section-title">Open app</div>
+        <div class="field-row">
+          <input id="open-app-package" type="text" placeholder="e.g. com.android.chrome" />
+          <button class="btn" id="send-openapp-btn" onclick="sendOpenApp('${device.device_id}')">Launch</button>
+        </div>
+
+        <div class="section-title">Device control</div>
+        <div class="field-row">
+          <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
+          <button class="btn secondary" id="send-reboot-btn" onclick="confirmReboot('${device.device_id}')">↻ Reboot</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Lock requires device admin to be enabled on the device; reboot requires Device Owner provisioning.
+        </div>
+
         <div class="section-title">Command history</div>
         <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
       </div>
@@ -774,6 +811,18 @@
     postCommand(deviceId, 'SET_REPORT_INTERVAL', { minutes }, 'send-interval-btn');
   }
 
+  function sendOpenApp(deviceId) {
+    const input = document.getElementById('open-app-package');
+    const packageName = input.value.trim();
+    if (!packageName) { input.focus(); return; }
+    postCommand(deviceId, 'OPEN_APP', { package_name: packageName }, 'send-openapp-btn');
+  }
+
+  function confirmReboot(deviceId) {
+    if (!confirm('Reboot this device now? It will be unreachable until it finishes restarting.')) return;
+    postCommand(deviceId, 'REBOOT', {}, 'send-reboot-btn');
+  }
+
   async function assignGroup(deviceId) {
     const select = document.getElementById('group-select');
     const groupId = select.value ? Number(select.value) : null;
@@ -795,11 +844,41 @@
     }
   }
 
+  // ---------------- alerts banner ----------------
+
+  async function loadAlerts() {
+    const banner = document.getElementById('alerts-banner');
+    try {
+      const res = await fetch('/api/alerts');
+      const data = await res.json();
+      const alerts = data.alerts || [];
+
+      if (alerts.length === 0) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return;
+      }
+
+      const lineCount = alerts.reduce((sum, d) => sum + d.alerts.length, 0);
+      const lines = alerts.map(d => d.alerts.map(a =>
+        `<div class="alert-line" onclick="selectDevice('${d.device_id}')">
+          <b>${escapeHtml(d.name || d.device_id)}</b> — ${escapeHtml(a.message)}
+        </div>`
+      ).join('')).join('');
+
+      banner.innerHTML = `<div class="alerts-title">${lineCount} active alert${lineCount === 1 ? '' : 's'}</div>${lines}`;
+      banner.style.display = 'block';
+    } catch (err) {
+      // Leave whatever was last shown rather than clearing it on a blip.
+    }
+  }
+
   // ---------------- boot ----------------
 
   async function refreshAll() {
     await loadGroups();
     await loadDevices();
+    await loadAlerts();
     if (selectedDeviceId) await loadDetail(selectedDeviceId);
   }
 
