@@ -691,6 +691,20 @@
   function renderDetail(device, commands) {
     const slot = document.getElementById('detail-slot');
     const online = isOnline(device.last_seen);
+
+    // The panel gets fully rebuilt on every 15s auto-refresh (to keep
+    // status/battery/last-seen live) — without this, anything the admin
+    // was mid-typing, or a file they'd just picked in the upload input,
+    // would silently vanish the moment a refresh tick landed.
+    const preserved = {};
+    slot.querySelectorAll('input').forEach(el => {
+      if (el.type === 'file') {
+        if (el.files && el.files[0]) preserved[el.id] = { file: el.files[0] };
+      } else if (el.value) {
+        preserved[el.id] = { value: el.value };
+      }
+    });
+
     const groupOptions = [`<option value="">Uncategorized</option>`]
       .concat(groups.map(g => `<option value="${g.id}" ${g.id === device.group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`))
       .join('');
@@ -770,6 +784,18 @@
         <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
       </div>
     `;
+
+    Object.entries(preserved).forEach(([id, data]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (data.file) {
+        const dt = new DataTransfer();
+        dt.items.add(data.file);
+        el.files = dt.files;
+      } else if (data.value !== undefined) {
+        el.value = data.value;
+      }
+    });
 
     populateApkPicker();
   }
