@@ -12,6 +12,7 @@
     "dev": "node server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1098.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
