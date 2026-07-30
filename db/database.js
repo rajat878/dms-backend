@@ -84,6 +84,25 @@ await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_commands_device_status
       ON commands (device_id, status);
   `);
+
+  // APKs stored directly in Postgres as bytea. Render's free web-service
+  // filesystem is ephemeral (wiped on redeploy / spin-down from
+  // inactivity), so the file bytes can't just live on disk. Postgres is
+  // already attached and persists independently of the web service, so we
+  // reuse it instead of standing up a separate object-storage account.
+  // Fine for occasional small/medium APKs; if you outgrow the free
+  // Postgres's 1GB storage or need this to survive a free-DB expiry
+  // without re-uploading, move to a real object store (R2, B2, etc).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS apks (
+      id            SERIAL PRIMARY KEY,
+      filename      TEXT NOT NULL,
+      content_type  TEXT NOT NULL DEFAULT 'application/vnd.android.package-archive',
+      size          BIGINT NOT NULL,
+      data          BYTEA NOT NULL,
+      uploaded_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 }
 
 module.exports = { pool, initDb };
