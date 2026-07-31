@@ -231,11 +231,10 @@
     .detail-panel {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0 0 4px;
+      border-radius: 8px;
+      padding: 20px 20px 24px;
       position: sticky;
       top: 24px;
-      overflow: hidden;
     }
     .detail-empty {
       background: var(--panel);
@@ -246,37 +245,17 @@
       color: var(--text-muted);
       font-size: 13px;
     }
-
-    /* Thin live-status line across the top of the panel — green while the
-       device is online (with a slow shimmer), solid red/dim when it isn't.
-       Small, ambient, and reads at a glance without needing a label. */
-    .status-line {
-      height: 3px;
-      background: var(--border);
-    }
-    .status-line.online {
-      background: linear-gradient(90deg, var(--green), #2ea043, var(--green));
-      background-size: 200% 100%;
-      animation: shimmer 2.4s linear infinite;
-    }
-    .status-line.offline { background: var(--red); opacity: 0.5; }
-    @keyframes shimmer {
-      0% { background-position: 0% 0; }
-      100% { background-position: -200% 0; }
-    }
-
     .detail-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
+      margin-bottom: 16px;
       gap: 12px;
-      padding: 18px 20px 0;
     }
     .detail-header h2 {
-      font-size: 17px;
-      margin: 0 0 3px;
+      font-size: 16px;
+      margin: 0 0 4px;
       font-family: var(--mono);
-      letter-spacing: -0.2px;
     }
     .detail-header .sub { font-size: 12px; color: var(--text-muted); }
     .close-btn {
@@ -290,99 +269,8 @@
       font-size: 14px;
       line-height: 1;
       flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
     }
     .close-btn:hover { background: var(--panel-hover); color: var(--text-primary); }
-
-    /* Pulsing dot for an online device — a soft expanding ring rather than
-       a blink, so a room full of these doesn't feel like an alarm panel. */
-    .pulse-dot { position: relative; width: 7px; height: 7px; }
-    .pulse-dot .core {
-      position: absolute; inset: 0;
-      border-radius: 50%;
-      background: var(--green);
-    }
-    .pulse-dot .ring {
-      position: absolute; inset: 0;
-      border-radius: 50%;
-      background: var(--green);
-      animation: pulse-ring 2s ease-out infinite;
-    }
-    @keyframes pulse-ring {
-      0% { transform: scale(1); opacity: 0.6; }
-      100% { transform: scale(3); opacity: 0; }
-    }
-
-    /* Always-visible strip of key live stats, regardless of which tab is
-       open — status/battery/power/volume/etc are the things worth seeing
-       at a glance without a click. */
-    .status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 14px 20px;
-      margin: 14px 0 0;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.015);
-    }
-    .stat-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
-      border-radius: 7px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      font-family: var(--mono);
-      color: var(--text-secondary);
-    }
-    .stat-chip .stat-chip-label { color: var(--text-muted); font-family: -apple-system, sans-serif; font-size: 11px; }
-    .stat-chip .stat-chip-value { color: var(--text-primary); }
-    .stat-chip.warn { border-color: var(--red); background: var(--red-bg); }
-    .stat-chip.warn .stat-chip-value { color: var(--red); }
-    .stat-chip.good .stat-chip-value { color: var(--green); }
-
-    /* ---- tab rail (icon strip + content, echoes the BenQ-style side-tab
-       layout: a narrow rail of icons switching one content pane) ---- */
-    .detail-body { display: flex; align-items: stretch; }
-    .tab-rail {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 14px 8px;
-      border-right: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .tab-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      background: none;
-      color: var(--text-muted);
-      font-size: 17px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s, color 0.15s, transform 0.1s;
-    }
-    .tab-icon:hover { background: var(--panel-hover); color: var(--text-primary); }
-    .tab-icon:active { transform: scale(0.92); }
-    .tab-icon.active {
-      background: var(--blue-bg);
-      color: var(--blue);
-      border-color: var(--blue);
-    }
-
-    .tab-content-wrap { flex: 1; min-width: 0; padding: 18px 20px 20px; }
-    .tab-content { animation: tab-fade-in 0.18s ease-out; }
-    @keyframes tab-fade-in {
-      from { opacity: 0; transform: translateY(3px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
 
     .info-grid {
       display: grid;
@@ -415,7 +303,6 @@
       padding: 8px 10px;
       font-size: 13px;
       font-family: inherit;
-      transition: border-color 0.15s;
     }
     .field-row input:focus, .field-row select:focus { outline: none; border-color: var(--blue); }
     .btn {
@@ -428,10 +315,8 @@
       font-weight: 500;
       cursor: pointer;
       white-space: nowrap;
-      transition: background 0.15s, transform 0.1s;
     }
     .btn:hover { background: #113355; }
-    .btn:active:not(:disabled) { transform: scale(0.97); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.secondary { background: var(--panel-hover); color: var(--text-primary); border-color: var(--border); }
     .btn.secondary:hover { background: #232b36; }
@@ -465,15 +350,7 @@
       .layout.with-detail { grid-template-columns: 1fr; }
       .detail-panel { position: static; }
     }
-    @media (max-width: 560px) {
-      .detail-body { flex-direction: column; }
-      .tab-rail { flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .status-line.online, .pulse-dot .ring, .tab-content { animation: none; }
-    }
   </style>
-
 </head>
 <body>
 <div class="wrap">
@@ -541,7 +418,6 @@
   let devices = [];
   let groups = [];
   let selectedDeviceId = null;
-  let activeDetailTab = 'overview'; // 'overview' | 'controls' | 'apps' | 'history'
   let activeGroupFilter = 'all'; // 'all' | 'uncategorized' | group id (number)
 
   function formatBytes(bytes) {
@@ -793,7 +669,6 @@
   // ---------------- detail panel ----------------
 
   function selectDevice(deviceId) {
-    if (deviceId !== selectedDeviceId) activeDetailTab = 'overview';
     selectedDeviceId = deviceId;
     document.getElementById('layout').classList.add('with-detail');
     renderDeviceRows();
@@ -844,167 +719,114 @@
       .concat(groups.map(g => `<option value="${g.id}" ${g.id === device.group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`))
       .join('');
 
-    const batteryOk = device.battery != null && device.battery >= 0;
-    const chips = [
-      {
-        label: 'Status',
-        value: online ? 'Online' : 'Offline',
-        cls: online ? 'good' : 'warn'
-      },
-      device.power_connected != null ? {
-        label: 'Power',
-        value: device.power_connected ? 'Plugged in' : 'Unplugged',
-        cls: device.power_connected ? 'good' : 'warn'
-      } : null,
-      batteryOk ? { label: 'Battery', value: device.battery + '%' } : null,
-      device.volume_percent != null ? { label: 'Volume', value: device.volume_percent + '%' } : null,
-      device.muted != null ? { label: 'Mute', value: device.muted ? 'On' : 'Off', cls: device.muted ? 'warn' : null } : null,
-      device.brightness_percent != null ? { label: 'Brightness', value: device.brightness_percent + '%' } : null,
-      { label: 'Storage free', value: formatBytes(device.storage_free) },
-      { label: 'Last seen', value: timeAgo(device.last_seen) },
-    ].filter(Boolean);
-
-    const statusStripHtml = chips.map(c => `
-      <span class="stat-chip ${c.cls || ''}">
-        <span class="stat-chip-label">${c.label}</span>
-        <span class="stat-chip-value">${escapeHtml(String(c.value))}</span>
-      </span>
-    `).join('');
-
-    const tabs = [
-      { key: 'overview', icon: '🗂', title: 'Overview' },
-      { key: 'controls', icon: '🎚', title: 'Controls' },
-      { key: 'apps', icon: '📦', title: 'Apps' },
-      { key: 'history', icon: '🕘', title: 'History' },
-    ];
-    const tabRailHtml = tabs.map(t => `
-      <button class="tab-icon ${activeDetailTab === t.key ? 'active' : ''}"
-              data-tab="${t.key}" title="${t.title}" onclick="setDetailTab('${t.key}')">${t.icon}</button>
-    `).join('');
-
-    const show = key => activeDetailTab === key ? '' : 'style="display:none"';
-
     slot.innerHTML = `
       <div class="detail-panel">
-        <div class="status-line ${online ? 'online' : 'offline'}"></div>
-
         <div class="detail-header">
           <div>
-            <h2>
-              ${online ? '<span class="pulse-dot" style="display:inline-block; margin-right:8px;"><span class="ring"></span><span class="core"></span></span>' : ''}
-              ${escapeHtml(device.name || device.device_id)}
-            </h2>
-            <div class="sub">${escapeHtml(device.device_id)} · ${escapeHtml(device.group_name || 'Uncategorized')}</div>
+            <h2>${escapeHtml(device.name || device.device_id)}</h2>
+            <div class="sub">${escapeHtml(device.device_id)}</div>
           </div>
           <button class="close-btn" onclick="closeDetail()">✕</button>
         </div>
 
-        <div class="status-strip">${statusStripHtml}</div>
-
-        <div class="detail-body">
-          <div class="tab-rail">${tabRailHtml}</div>
-
-          <div class="tab-content-wrap">
-            <div class="tab-content" data-tab-content="overview" ${show('overview')}>
-              <div class="info-grid">
-                <div><div class="k">App version</div><div class="v">${escapeHtml(device.app_version || '—')}</div></div>
-                <div><div class="k">Group</div><div class="v">${escapeHtml(device.group_name || 'Uncategorized')}</div></div>
-              </div>
-
-              <div class="section-title">Assign to group</div>
-              <div class="group-assign">
-                <select id="group-select">${groupOptions}</select>
-                <button class="btn secondary" onclick="assignGroup('${device.device_id}')">Save</button>
-              </div>
-
-              <div class="section-title">Send message</div>
-              <div class="field-row">
-                <input id="msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
-                <button class="btn" id="send-msg-btn" onclick="sendMessage('${device.device_id}')">Send</button>
-              </div>
-            </div>
-
-            <div class="tab-content" data-tab-content="controls" ${show('controls')}>
-              <div class="section-title">Quick settings</div>
-              <div class="field-row">
-                <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Volume</label>
-                <input id="volume-input" type="number" min="0" max="100" value="${device.volume_percent ?? ''}" placeholder="0-100" style="width:80px;" />
-                <button class="btn secondary" id="send-volume-btn" onclick="sendVolume('${device.device_id}')">Set</button>
-                <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.volume_percent != null ? device.volume_percent + '%' : '—'}</span>
-              </div>
-              <div class="field-row" style="margin-top:8px;">
-                <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Mute</label>
-                <button class="btn secondary" id="send-mute-on-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: true }, 'send-mute-on-btn')">On</button>
-                <button class="btn secondary" id="send-mute-off-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: false }, 'send-mute-off-btn')">Off</button>
-                <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.muted == null ? '—' : (device.muted ? 'muted' : 'unmuted')}</span>
-              </div>
-              <div class="field-row" style="margin-top:8px;">
-                <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Brightness</label>
-                <input id="brightness-input" type="number" min="0" max="100" value="${device.brightness_percent ?? ''}" placeholder="0-100" style="width:80px;" />
-                <button class="btn secondary" id="send-brightness-btn" onclick="sendBrightness('${device.device_id}')">Set</button>
-                <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.brightness_percent != null ? device.brightness_percent + '%' : '—'}</span>
-              </div>
-              <div class="cmd-note" style="margin-top:6px;">
-                Brightness requires the "Modify system settings" permission enabled once on the device
-                (the DMS Agent app itself prompts for this); volume/mute need no special permission.
-              </div>
-
-              <div class="section-title">Set report interval</div>
-              <div class="field-row">
-                <input id="interval-minutes" type="number" min="15" step="1" placeholder="minutes (min 15)" />
-                <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
-              </div>
-
-              <div class="section-title">Open app</div>
-              <div class="field-row">
-                <input id="open-app-package" type="text" placeholder="e.g. com.android.chrome" />
-                <button class="btn" id="send-openapp-btn" onclick="sendOpenApp('${device.device_id}')">Launch</button>
-              </div>
-
-              <div class="section-title">Device control</div>
-              <div class="field-row">
-                <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
-                <button class="btn secondary" id="send-reboot-btn" onclick="confirmReboot('${device.device_id}')">↻ Reboot</button>
-              </div>
-              <div class="cmd-note" style="margin-top:6px;">
-                Lock requires device admin to be enabled on the device; reboot requires Device Owner provisioning.
-              </div>
-              <div class="field-row" style="margin-top:8px;">
-                <button class="btn secondary" id="send-forcelock-btn" onclick="confirmForceLock('${device.device_id}')">🔐 Force lock (until released)</button>
-                <button class="btn secondary" id="send-releaselock-btn" onclick="postCommand('${device.device_id}', 'RELEASE_LOCK', {}, 'send-releaselock-btn')">🔓 Release lock</button>
-              </div>
-              <div class="cmd-note" style="margin-top:6px;">
-                Android has no remote power-off API for any app — this is the practical equivalent: the device
-                re-locks itself the instant it's unlocked, so it stays unusable until you send Release lock.
-                It shows a visible notification on the device the whole time; it is not covert.
-              </div>
-            </div>
-
-            <div class="tab-content" data-tab-content="apps" ${show('apps')}>
-              <div class="section-title">Install app</div>
-              <div class="field-row">
-                <input id="apk-upload" type="file" accept=".apk" style="flex:1;" />
-                <button class="btn secondary" id="upload-apk-btn" onclick="uploadApk('${device.device_id}')">Upload</button>
-              </div>
-              <div class="field-row" style="margin-top:8px;">
-                <select id="apk-picker" onchange="document.getElementById('apk-url').value = this.value"></select>
-              </div>
-              <div class="field-row" style="margin-top:8px;">
-                <input id="apk-url" type="text" placeholder="or paste an APK URL directly" />
-                <button class="btn" id="send-install-btn" onclick="sendInstallApp('${device.device_id}')">Install</button>
-              </div>
-              <div class="cmd-note" style="margin-top:6px;">
-                Without Device Owner provisioning this shows the device's normal "Install unknown app?" prompt —
-                someone still has to tap it. With Device Owner it installs silently.
-              </div>
-            </div>
-
-            <div class="tab-content" data-tab-content="history" ${show('history')}>
-              <div class="section-title">Command history</div>
-              <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
-            </div>
-          </div>
+        <div class="info-grid">
+          <div><div class="k">Status</div><div class="v">
+            <span class="badge ${online ? 'online' : 'offline'}"><span class="dot"></span>${online ? 'online' : 'offline'}</span>
+          </div></div>
+          <div><div class="k">App version</div><div class="v">${escapeHtml(device.app_version || '—')}</div></div>
+          <div><div class="k">Battery</div><div class="v">${device.battery != null && device.battery >= 0 ? device.battery + '%' : '—'}</div></div>
+          <div><div class="k">Power</div><div class="v">${powerBadgeHtml(device.power_connected)}</div></div>
+          <div><div class="k">Free storage</div><div class="v">${formatBytes(device.storage_free)}</div></div>
+          <div><div class="k">Last seen</div><div class="v">${timeAgo(device.last_seen)}</div></div>
+          <div><div class="k">Group</div><div class="v">${escapeHtml(device.group_name || 'Uncategorized')}</div></div>
         </div>
+
+        <div class="section-title">Assign to group</div>
+        <div class="group-assign">
+          <select id="group-select">${groupOptions}</select>
+          <button class="btn secondary" onclick="assignGroup('${device.device_id}')">Save</button>
+        </div>
+
+        <div class="section-title">Send message</div>
+        <div class="field-row">
+          <input id="msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
+          <button class="btn" id="send-msg-btn" onclick="sendMessage('${device.device_id}')">Send</button>
+        </div>
+
+        <div class="section-title">Set report interval</div>
+        <div class="field-row">
+          <input id="interval-minutes" type="number" min="15" step="1" placeholder="minutes (min 15)" />
+          <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
+        </div>
+
+        <div class="section-title">Open app</div>
+        <div class="field-row">
+          <input id="open-app-package" type="text" placeholder="e.g. com.android.chrome" />
+          <button class="btn" id="send-openapp-btn" onclick="sendOpenApp('${device.device_id}')">Launch</button>
+        </div>
+
+        <div class="section-title">Install app</div>
+        <div class="field-row">
+          <input id="apk-upload" type="file" accept=".apk" style="flex:1;" />
+          <button class="btn secondary" id="upload-apk-btn" onclick="uploadApk('${device.device_id}')">Upload</button>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <select id="apk-picker" onchange="document.getElementById('apk-url').value = this.value"></select>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <input id="apk-url" type="text" placeholder="or paste an APK URL directly" />
+          <button class="btn" id="send-install-btn" onclick="sendInstallApp('${device.device_id}')">Install</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Without Device Owner provisioning this shows the device's normal "Install unknown app?" prompt —
+          someone still has to tap it. With Device Owner it installs silently.
+        </div>
+
+        <div class="section-title">Quick settings</div>
+        <div class="field-row">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Volume</label>
+          <input id="volume-input" type="number" min="0" max="100" value="${device.volume_percent ?? ''}" placeholder="0-100" style="width:80px;" />
+          <button class="btn secondary" id="send-volume-btn" onclick="sendVolume('${device.device_id}')">Set</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.volume_percent != null ? device.volume_percent + '%' : '—'}</span>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Mute</label>
+          <button class="btn secondary" id="send-mute-on-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: true }, 'send-mute-on-btn')">On</button>
+          <button class="btn secondary" id="send-mute-off-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: false }, 'send-mute-off-btn')">Off</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.muted == null ? '—' : (device.muted ? 'muted' : 'unmuted')}</span>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Brightness</label>
+          <input id="brightness-input" type="number" min="0" max="100" value="${device.brightness_percent ?? ''}" placeholder="0-100" style="width:80px;" />
+          <button class="btn secondary" id="send-brightness-btn" onclick="sendBrightness('${device.device_id}')">Set</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.brightness_percent != null ? device.brightness_percent + '%' : '—'}</span>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Brightness requires the "Modify system settings" permission enabled once on the device
+          (the DMS Agent app itself prompts for this); volume/mute need no special permission.
+        </div>
+
+        <div class="section-title">Device control</div>
+        <div class="field-row">
+          <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
+          <button class="btn secondary" id="send-reboot-btn" onclick="confirmReboot('${device.device_id}')">↻ Reboot</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Lock requires device admin to be enabled on the device; reboot requires Device Owner provisioning.
+        </div>
+
+        <div class="field-row" style="margin-top:8px;">
+          <button class="btn secondary" id="send-forcelock-btn" onclick="confirmForceLock('${device.device_id}')">🔐 Force lock (until released)</button>
+          <button class="btn secondary" id="send-releaselock-btn" onclick="postCommand('${device.device_id}', 'RELEASE_LOCK', {}, 'send-releaselock-btn')">🔓 Release lock</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Android has no remote power-off API for any app — this is the practical equivalent: the device
+          re-locks itself the instant it's unlocked, so it stays unusable until you send Release lock.
+          It shows a visible notification on the device the whole time; it is not covert.
+        </div>
+
+        <div class="section-title">Command history</div>
+        <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
       </div>
     `;
 
