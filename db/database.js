@@ -60,6 +60,15 @@ await pool.query(`
     ALTER TABLE devices ADD COLUMN IF NOT EXISTS power_connected BOOLEAN;
   `);
   await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS volume_percent INTEGER;
+  `);
+  await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS muted BOOLEAN;
+  `);
+  await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS brightness_percent INTEGER;
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS heartbeat_log (
       id            SERIAL PRIMARY KEY,
       device_id     TEXT,

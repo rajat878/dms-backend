@@ -782,6 +782,30 @@
           someone still has to tap it. With Device Owner it installs silently.
         </div>
 
+        <div class="section-title">Quick settings</div>
+        <div class="field-row">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Volume</label>
+          <input id="volume-input" type="number" min="0" max="100" value="${device.volume_percent ?? ''}" placeholder="0-100" style="width:80px;" />
+          <button class="btn secondary" id="send-volume-btn" onclick="sendVolume('${device.device_id}')">Set</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.volume_percent != null ? device.volume_percent + '%' : '—'}</span>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Mute</label>
+          <button class="btn secondary" id="send-mute-on-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: true }, 'send-mute-on-btn')">On</button>
+          <button class="btn secondary" id="send-mute-off-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: false }, 'send-mute-off-btn')">Off</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.muted == null ? '—' : (device.muted ? 'muted' : 'unmuted')}</span>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Brightness</label>
+          <input id="brightness-input" type="number" min="0" max="100" value="${device.brightness_percent ?? ''}" placeholder="0-100" style="width:80px;" />
+          <button class="btn secondary" id="send-brightness-btn" onclick="sendBrightness('${device.device_id}')">Set</button>
+          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.brightness_percent != null ? device.brightness_percent + '%' : '—'}</span>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Brightness requires the "Modify system settings" permission enabled once on the device
+          (the DMS Agent app itself prompts for this); volume/mute need no special permission.
+        </div>
+
         <div class="section-title">Device control</div>
         <div class="field-row">
           <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
@@ -882,6 +906,26 @@
     const packageName = input.value.trim();
     if (!packageName) { input.focus(); return; }
     postCommand(deviceId, 'OPEN_APP', { package_name: packageName }, 'send-openapp-btn');
+  }
+
+  function sendVolume(deviceId) {
+    const input = document.getElementById('volume-input');
+    const level = parseInt(input.value, 10);
+    if (isNaN(level) || level < 0 || level > 100) {
+      alert('Enter a volume between 0 and 100.');
+      return;
+    }
+    postCommand(deviceId, 'SET_VOLUME', { level }, 'send-volume-btn');
+  }
+
+  function sendBrightness(deviceId) {
+    const input = document.getElementById('brightness-input');
+    const level = parseInt(input.value, 10);
+    if (isNaN(level) || level < 0 || level > 100) {
+      alert('Enter a brightness between 0 and 100.');
+      return;
+    }
+    postCommand(deviceId, 'SET_BRIGHTNESS', { level }, 'send-brightness-btn');
   }
 
   function confirmReboot(deviceId) {
