@@ -375,8 +375,8 @@
       <div class="stat-value red" id="stat-offline">–</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Avg battery</div>
-      <div class="stat-value" id="stat-battery">–</div>
+      <div class="stat-label">Power lost</div>
+      <div class="stat-value red" id="stat-unplugged">–</div>
     </div>
   </div>
 
@@ -392,7 +392,7 @@
           <th>Status</th>
           <th>Device</th>
           <th>Group</th>
-          <th>Battery</th>
+          <th>Power</th>
           <th>Free storage</th>
           <th>Last seen</th>
         </tr>
@@ -450,6 +450,20 @@
     return 'green';
   }
 
+  // power_connected is tri-state: true = plugged in, false = unplugged
+  // (real alert on always-on-power panel hardware), null/undefined =
+  // device hasn't reported it yet (e.g. hasn't heartbeat-ed since this
+  // field was added).
+  function powerBadgeHtml(powerConnected) {
+    if (powerConnected === true) {
+      return '<span class="badge online"><span class="dot"></span>Plugged in</span>';
+    }
+    if (powerConnected === false) {
+      return '<span class="badge offline"><span class="dot"></span>Unplugged</span>';
+    }
+    return '<span style="color: var(--text-secondary);">—</span>';
+  }
+
   function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, c => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -488,16 +502,17 @@
   // ---------------- rendering: stats + group bar ----------------
 
   function renderStats() {
-    let onlineCount = 0, batterySum = 0, batteryCount = 0;
+    let onlineCount = 0, unpluggedCount = 0;
     devices.forEach(d => {
       if (isOnline(d.last_seen)) onlineCount++;
-      if (d.battery != null && d.battery >= 0) { batterySum += d.battery; batteryCount++; }
+      // Only counts devices that have actually reported power_connected
+      // false — null (unknown / never reported) doesn't count as an alert.
+      if (d.power_connected === false) unpluggedCount++;
     });
     document.getElementById('stat-total').textContent = devices.length;
     document.getElementById('stat-online').textContent = onlineCount;
     document.getElementById('stat-offline').textContent = devices.length - onlineCount;
-    document.getElementById('stat-battery').textContent =
-      batteryCount > 0 ? Math.round(batterySum / batteryCount) + '%' : '—';
+    document.getElementById('stat-unplugged').textContent = unpluggedCount;
   }
 
   function renderGroupBar() {
@@ -628,9 +643,6 @@
 
     list.forEach(d => {
       const online = isOnline(d.last_seen);
-      const battery = (d.battery != null && d.battery >= 0) ? d.battery : null;
-      const barClass = batteryBarClass(battery);
-      const batteryLabel = battery == null ? '—' : battery + '%';
 
       const tr = document.createElement('tr');
       tr.className = 'device-row' + (d.device_id === selectedDeviceId ? ' selected' : '');
@@ -646,9 +658,7 @@
           <span style="color: var(--text-secondary); font-size: 11px;">${escapeHtml(d.device_id)}</span>
         </td>
         <td style="color: var(--text-secondary);">${escapeHtml(d.group_name || 'Uncategorized')}</td>
-        <td>
-          <span class="bar-track"><span class="bar-fill ${barClass}" style="width:${battery ?? 0}%"></span></span>${batteryLabel}
-        </td>
+        <td>${powerBadgeHtml(d.power_connected)}</td>
         <td>${formatBytes(d.storage_free)}</td>
         <td style="color: var(--text-secondary);">${timeAgo(d.last_seen)}</td>
       `;
@@ -725,6 +735,7 @@
           </div></div>
           <div><div class="k">App version</div><div class="v">${escapeHtml(device.app_version || '—')}</div></div>
           <div><div class="k">Battery</div><div class="v">${device.battery != null && device.battery >= 0 ? device.battery + '%' : '—'}</div></div>
+          <div><div class="k">Power</div><div class="v">${powerBadgeHtml(device.power_connected)}</div></div>
           <div><div class="k">Free storage</div><div class="v">${formatBytes(device.storage_free)}</div></div>
           <div><div class="k">Last seen</div><div class="v">${timeAgo(device.last_seen)}</div></div>
           <div><div class="k">Group</div><div class="v">${escapeHtml(device.group_name || 'Uncategorized')}</div></div>

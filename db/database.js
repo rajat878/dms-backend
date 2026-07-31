@@ -52,14 +52,25 @@ async function initDb() {
 await pool.query(`
     ALTER TABLE devices ADD COLUMN IF NOT EXISTS fcm_token TEXT;
   `);
+  // Panels wired to direct/AC power (no battery) still send the same
+  // battery-status broadcast — EXTRA_PLUGGED just tells you whether power
+  // is currently connected, which is the meaningful signal on that
+  // hardware ("unplugged" == real alert) versus a fake/absent battery %.
+  await pool.query(`
+    ALTER TABLE devices ADD COLUMN IF NOT EXISTS power_connected BOOLEAN;
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS heartbeat_log (
       id            SERIAL PRIMARY KEY,
       device_id     TEXT,
       battery       INTEGER,
+      power_connected BOOLEAN,
       storage_free  BIGINT,
       received_at   TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+  await pool.query(`
+    ALTER TABLE heartbeat_log ADD COLUMN IF NOT EXISTS power_connected BOOLEAN;
   `);
 
   // The command queue that makes control two-way. The dashboard inserts a

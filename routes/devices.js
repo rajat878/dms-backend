@@ -9,7 +9,7 @@ const { pushCommand } = require("../firebase");
 // commands that are waiting for this device (marking them "delivered" so
 // they aren't handed out twice).
 router.post("/heartbeat", async (req, res) => {
-  const { device_id, name, battery, storage_free, app_version } = req.body;
+  const { device_id, name, battery, power_connected, storage_free, app_version } = req.body;
 
   if (!device_id) {
     return res.status(400).json({ ok: false, error: "device_id is required" });
@@ -18,21 +18,22 @@ router.post("/heartbeat", async (req, res) => {
   try {
     await pool.query(
       `
-      INSERT INTO devices (device_id, name, battery, storage_free, app_version, last_seen)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+      INSERT INTO devices (device_id, name, battery, power_connected, storage_free, app_version, last_seen)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
       ON CONFLICT (device_id) DO UPDATE SET
         name = EXCLUDED.name,
         battery = EXCLUDED.battery,
+        power_connected = EXCLUDED.power_connected,
         storage_free = EXCLUDED.storage_free,
         app_version = EXCLUDED.app_version,
         last_seen = EXCLUDED.last_seen
       `,
-      [device_id, name ?? null, battery ?? null, storage_free ?? null, app_version ?? null]
+      [device_id, name ?? null, battery ?? null, power_connected ?? null, storage_free ?? null, app_version ?? null]
     );
 
     await pool.query(
-      `INSERT INTO heartbeat_log (device_id, battery, storage_free) VALUES ($1, $2, $3)`,
-      [device_id, battery ?? null, storage_free ?? null]
+      `INSERT INTO heartbeat_log (device_id, battery, power_connected, storage_free) VALUES ($1, $2, $3, $4)`,
+      [device_id, battery ?? null, power_connected ?? null, storage_free ?? null]
     );
 
     // Pick up anything queued for this device and mark it delivered in the
