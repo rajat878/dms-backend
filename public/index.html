@@ -780,6 +780,16 @@
           Lock requires device admin to be enabled on the device; reboot requires Device Owner provisioning.
         </div>
 
+        <div class="field-row" style="margin-top:8px;">
+          <button class="btn secondary" id="send-forcelock-btn" onclick="confirmForceLock('${device.device_id}')">🔐 Force lock (until released)</button>
+          <button class="btn secondary" id="send-releaselock-btn" onclick="postCommand('${device.device_id}', 'RELEASE_LOCK', {}, 'send-releaselock-btn')">🔓 Release lock</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Android has no remote power-off API for any app — this is the practical equivalent: the device
+          re-locks itself the instant it's unlocked, so it stays unusable until you send Release lock.
+          It shows a visible notification on the device the whole time; it is not covert.
+        </div>
+
         <div class="section-title">Command history</div>
         <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
       </div>
@@ -866,6 +876,11 @@
   function confirmReboot(deviceId) {
     if (!confirm('Reboot this device now? It will be unreachable until it finishes restarting.')) return;
     postCommand(deviceId, 'REBOOT', {}, 'send-reboot-btn');
+  }
+
+  function confirmForceLock(deviceId) {
+    if (!confirm('Force-lock this device? It will re-lock itself on every unlock attempt until you send Release lock.')) return;
+    postCommand(deviceId, 'FORCE_LOCK', {}, 'send-forcelock-btn');
   }
 
   function formatBytesShort(bytes) {
