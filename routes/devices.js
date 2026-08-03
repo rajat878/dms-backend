@@ -217,6 +217,75 @@ router.get("/:device_id", async (req, res) => {
   }
 });
 
+// GET /api/devices/:device_id/screen
+// Resolves what this device's ad player should be showing right now: its
+// own direct layout assignment if it has one, otherwise its group's, in one
+// query. Returns the layout template + each zone's resolved playlist
+// (media_type, playable url, duration_seconds per item) — everything the
+// Android player needs, so it never has to make a second request.
+// Returns { ok: true, layout: null } if nothing is assigned yet.
+router.get("/:device_id/screen", async (req, res) => {
+  try {
+    const assignmentResult = await pool.query(
+      `
+      SELECT la.layout_id
+      FROM devices d
+      LEFT JOIN layout_assignments la
+        ON la.device_id = d.device_id
+        OR la.group_id = d.group_id
+      WHERE d.device_id = $1
+      ORDER BY la.device_id NULLS LAST -- device-level assignment wins over the group's
+      LIMIT 1
+      `,
+      [req.params.device_id]
+    );
+
+    const layoutId = assignmentResult.rows[0]?.layout_id;
+    if (!layoutId) {
+      return res.json({ ok: true, layout: null });
+    }
+
+    const layoutResult = await pool.query(`SELECT * FROM layouts WHERE id = $1`, [layoutId]);
+    if (layoutResult.rows.length === 0) {
+      return res.json({ ok: true, layout: null });
+    }
+    const layout = layoutResult.rows[0];
+
+    const itemsResult = await pool.query(
+      `
+      SELECT lzi.zone_key, lzi.sort_order, a.id, a.name, a.media_type, a.source,
+             a.external_url, a.duration_seconds
+      FROM layout_zone_items lzi
+      JOIN ads a ON a.id = lzi.ad_id
+      WHERE lzi.layout_id = $1
+      ORDER BY lzi.zone_key, lzi.sort_order
+      `,
+      [layoutId]
+    );
+
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const zones = {};
+    for (const row of itemsResult.rows) {
+      if (!zones[row.zone_key]) zones[row.zone_key] = [];
+      zones[row.zone_key].push({
+        id: row.id,
+        name: row.name,
+        media_type: row.media_type,
+        duration_seconds: row.duration_seconds,
+        url: row.source === "upload" ? `${base}/api/ads/${row.id}/file` : row.external_url,
+      });
+    }
+
+    res.json({
+      ok: true,
+      layout: { id: layout.id, name: layout.name, template: layout.template, zones },
+    });
+  } catch (err) {
+    console.error("get device screen error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 // PATCH /api/devices/:device_id
 // Currently just used to (re)assign a device to a group. group_id: null moves
 // it back to "Uncategorized".

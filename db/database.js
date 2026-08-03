@@ -113,6 +113,87 @@ await pool.query(`
   // Fine for occasional small/medium APKs; if you outgrow the free
   // Postgres's 1GB storage or need this to survive a free-DB expiry
   // without re-uploading, move to a real object store (R2, B2, etc).
+  // ---- Digital signage / ads --------------------------------------------
+  // A single piece of playable content. Same "store small uploads in
+  // Postgres, keep it optional for external URLs" split as apks above:
+  // media_type is 'image' | 'video' | 'web'. source is 'upload' (bytes live
+  // in `data`) or 'url' (bytes live elsewhere, `external_url` points at
+  // them — this is also how 'web' content always works, since a live page
+  // can't be stored as a blob).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ads (
+      id                SERIAL PRIMARY KEY,
+      name              TEXT NOT NULL,
+      media_type        TEXT NOT NULL CHECK (media_type IN ('image', 'video', 'web')),
+      source            TEXT NOT NULL CHECK (source IN ('upload', 'url')),
+      content_type      TEXT,
+      size              BIGINT,
+      data              BYTEA,
+      external_url      TEXT,
+      duration_seconds  INTEGER NOT NULL DEFAULT 10,
+      created_at        TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // A layout is just a named template ('split2' | 'split3' | 'grid4' |
+  // 'pip' | 'ticker') — the fixed zone keys for each template live in the
+  // Android app (LayoutTemplates.kt) and in the dashboard, not in the DB,
+  // so adding a new template later doesn't need a migration.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS layouts (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT NOT NULL,
+      template      TEXT NOT NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Each zone of a layout plays its own ordered list of ads (its own
+  // "playlist"), independent of the other zones — that's what lets 2-3 ads
+  // rotate on screen at once in different areas.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS layout_zone_items (
+      id            SERIAL PRIMARY KEY,
+      layout_id     INTEGER NOT NULL REFERENCES layouts(id) ON DELETE CASCADE,
+      zone_key      TEXT NOT NULL,
+      ad_id         INTEGER NOT NULL REFERENCES ads(id) ON DELETE CASCADE,
+      sort_order    INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_layout_zone_items_layout
+      ON layout_zone_items (layout_id, zone_key, sort_order);
+  `);
+
+  // A layout is assigned to exactly one of: a single device, or a whole
+  // group (every device in that group shows it). Device-level assignment
+  // takes priority when both exist for a device — see the resolution query
+  // in routes/devices.js (:device_id/screen).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS layout_assignments (
+      id            SERIAL PRIMARY KEY,
+      layout_id     INTEGER NOT NULL REFERENCES layouts(id) ON DELETE CASCADE,
+      device_id     TEXT REFERENCES devices(device_id) ON DELETE CASCADE,
+      group_id      INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      CHECK (
+        (device_id IS NOT NULL AND group_id IS NULL) OR
+        (device_id IS NULL AND group_id IS NOT NULL)
+      )
+    );
+  `);
+  // Only one active assignment per device / per group — re-assigning
+  // replaces it (see the ON CONFLICT upsert in routes/layouts.js) instead
+  // of piling up history rows.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_layout_assignments_device
+      ON layout_assignments (device_id) WHERE device_id IS NOT NULL;
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_layout_assignments_group
+      ON layout_assignments (group_id) WHERE group_id IS NOT NULL;
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS apks (
       id            SERIAL PRIMARY KEY,

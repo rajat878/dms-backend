@@ -410,6 +410,61 @@
     </div>
   </div>
 
+  <div class="layout" id="ads-section" style="margin-top:32px;">
+    <div class="table-wrap">
+      <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:15px; font-weight:600;">Ad library</div>
+        <div style="font-size:12px; color:var(--text-muted);">Images, videos, or web/HTML sources for zones below</div>
+      </div>
+      <div style="padding:16px 18px; border-bottom:1px solid var(--border);">
+        <div class="field-row">
+          <input id="ad-name" placeholder="Ad name" style="flex:1; min-width:140px;">
+          <select id="ad-media-type" onchange="onAdMediaTypeChange()">
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+            <option value="web">Web / HTML page</option>
+          </select>
+          <input id="ad-duration" type="number" min="1" placeholder="Seconds per play" style="width:150px;" value="10">
+        </div>
+        <div class="field-row" id="ad-upload-row" style="align-items:center;">
+          <input id="ad-file" type="file" accept="image/*,video/*">
+          <span style="color:var(--text-muted); font-size:12px;">or</span>
+          <input id="ad-url" placeholder="https://... external file or page URL" style="flex:1; min-width:220px;">
+        </div>
+        <div>
+          <button class="btn" onclick="uploadAd()" id="ad-submit-btn">Add ad</button>
+          <span id="ad-submit-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
+        </div>
+      </div>
+      <div id="ads-list" style="padding:12px 18px; display:grid; gap:6px;"></div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px;">
+      <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:15px; font-weight:600;">Layouts</div>
+        <div style="font-size:12px; color:var(--text-muted);">Split screens across 2\u20134 zones and assign to devices or groups</div>
+      </div>
+      <div style="padding:16px 18px; border-bottom:1px solid var(--border);">
+        <div class="field-row">
+          <input id="layout-name" placeholder="Layout name (e.g. Lobby screen)" style="flex:1; min-width:160px;">
+          <select id="layout-template" onchange="renderZonePickers()">
+            <option value="split2">2-way split</option>
+            <option value="split3">3-way (hero + 2 side)</option>
+            <option value="grid4">4-way grid</option>
+            <option value="pip">Picture-in-picture</option>
+            <option value="ticker">Main + bottom ticker</option>
+          </select>
+        </div>
+        <div id="zone-pickers" style="margin-bottom:10px;"></div>
+        <div>
+          <button class="btn" onclick="createLayout()">Create layout</button>
+          <span id="layout-submit-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
+        </div>
+      </div>
+      <div id="layouts-list" style="padding:12px 18px; display:grid; gap:10px;"></div>
+    </div>
+  </div>
+
   <footer>Auto-refreshes every 15 seconds</footer>
 </div>
 
@@ -1047,6 +1102,214 @@
     }
   }
 
+  // ---------------- ads & layouts ----------------
+
+  let ads = [];
+  let layouts = [];
+  const TEMPLATE_ZONES = {
+    split2: [['left', 'Left'], ['right', 'Right']],
+    split3: [['main', 'Main (hero)'], ['top_right', 'Top right'], ['bottom_right', 'Bottom right']],
+    grid4: [['top_left', 'Top left'], ['top_right', 'Top right'], ['bottom_left', 'Bottom left'], ['bottom_right', 'Bottom right']],
+    pip: [['main', 'Main (fullscreen)'], ['pip', 'Corner overlay']],
+    ticker: [['main', 'Main (fullscreen)'], ['ticker', 'Bottom ticker']],
+  };
+
+  function onAdMediaTypeChange() {
+    const isWeb = document.getElementById('ad-media-type').value === 'web';
+    document.getElementById('ad-file').style.display = isWeb ? 'none' : '';
+    document.getElementById('ad-file').disabled = isWeb;
+  }
+
+  async function loadAds() {
+    try {
+      const res = await fetch('/api/ads');
+      const data = await res.json();
+      ads = data.ads || [];
+      renderAds();
+      renderZonePickers();
+    } catch (err) { /* keep last known list on a blip */ }
+  }
+
+  function renderAds() {
+    const el = document.getElementById('ads-list');
+    if (ads.length === 0) {
+      el.innerHTML = '<div class="empty-sub">No ads yet — add one above.</div>';
+      return;
+    }
+    el.innerHTML = ads.map(ad => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--panel-hover); border-radius:6px; font-size:13px;">
+        <div>
+          <strong>${escapeHtml(ad.name)}</strong>
+          <span style="color:var(--text-muted); margin-left:8px;">${ad.media_type} · ${ad.duration_seconds}s${ad.size ? ' · ' + formatBytesShort(ad.size) : ''}</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <a href="${ad.url}" target="_blank" style="font-size:12px; color:var(--blue);">preview</a>
+          <button class="btn secondary" onclick="deleteAd(${ad.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function uploadAd() {
+    const name = document.getElementById('ad-name').value.trim();
+    const mediaType = document.getElementById('ad-media-type').value;
+    const duration = document.getElementById('ad-duration').value || undefined;
+    const url = document.getElementById('ad-url').value.trim();
+    const fileInput = document.getElementById('ad-file');
+    const status = document.getElementById('ad-submit-status');
+
+    if (!name) { status.textContent = 'name is required'; return; }
+
+    status.textContent = 'saving…';
+    try {
+      let res;
+      if (mediaType !== 'web' && fileInput.files.length > 0) {
+        const form = new FormData();
+        form.append('file', fileInput.files[0]);
+        form.append('name', name);
+        form.append('media_type', mediaType);
+        if (duration) form.append('duration_seconds', duration);
+        res = await fetch('/api/ads', { method: 'POST', body: form });
+      } else {
+        if (!url) { status.textContent = 'a file or a URL is required'; return; }
+        res = await fetch('/api/ads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, media_type: mediaType, external_url: url, duration_seconds: duration ? Number(duration) : undefined }),
+        });
+      }
+      const data = await res.json();
+      if (!data.ok) { status.textContent = data.error || 'failed'; return; }
+      status.textContent = 'added ✅';
+      document.getElementById('ad-name').value = '';
+      document.getElementById('ad-url').value = '';
+      fileInput.value = '';
+      await loadAds();
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    } catch (err) {
+      status.textContent = 'network error';
+    }
+  }
+
+  async function deleteAd(id) {
+    if (!confirm('Delete this ad? It will be removed from any layouts using it.')) return;
+    await fetch(`/api/ads/${id}`, { method: 'DELETE' });
+    await loadAds();
+    await loadLayouts();
+  }
+
+  function renderZonePickers() {
+    const template = document.getElementById('layout-template').value;
+    const zones = TEMPLATE_ZONES[template] || [];
+    const sortedAds = [...ads].sort((a, b) => a.id - b.id);
+    const el = document.getElementById('zone-pickers');
+    if (sortedAds.length === 0) {
+      el.innerHTML = '<div class="empty-sub">Add at least one ad above before building a layout.</div>';
+      return;
+    }
+    el.innerHTML = zones.map(([key, label]) => `
+      <div style="margin-bottom:8px;">
+        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">${label} zone — pick one or more (plays in the order checked):</div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          ${sortedAds.map(ad => `
+            <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
+              <input type="checkbox" class="zone-check" data-zone="${key}" value="${ad.id}">
+              ${escapeHtml(ad.name)} <span style="color:var(--text-muted);">(${ad.media_type})</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function createLayout() {
+    const name = document.getElementById('layout-name').value.trim();
+    const template = document.getElementById('layout-template').value;
+    const status = document.getElementById('layout-submit-status');
+    if (!name) { status.textContent = 'name is required'; return; }
+
+    const zones = {};
+    document.querySelectorAll('.zone-check:checked').forEach(cb => {
+      const zone = cb.dataset.zone;
+      (zones[zone] = zones[zone] || []).push(Number(cb.value));
+    });
+    if (Object.keys(zones).length === 0) { status.textContent = 'pick at least one ad for one zone'; return; }
+
+    status.textContent = 'saving…';
+    try {
+      const res = await fetch('/api/layouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, template, zones }),
+      });
+      const data = await res.json();
+      if (!data.ok) { status.textContent = data.error || 'failed'; return; }
+      status.textContent = 'created ✅';
+      document.getElementById('layout-name').value = '';
+      document.querySelectorAll('.zone-check:checked').forEach(cb => cb.checked = false);
+      await loadLayouts();
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    } catch (err) {
+      status.textContent = 'network error';
+    }
+  }
+
+  async function loadLayouts() {
+    try {
+      const res = await fetch('/api/layouts');
+      const data = await res.json();
+      layouts = data.layouts || [];
+      renderLayouts();
+    } catch (err) { /* keep last known list on a blip */ }
+  }
+
+  function renderLayouts() {
+    const el = document.getElementById('layouts-list');
+    if (layouts.length === 0) {
+      el.innerHTML = '<div class="empty-sub">No layouts yet — create one above.</div>';
+      return;
+    }
+    el.innerHTML = layouts.map(l => `
+      <div style="padding:10px 12px; background:var(--panel-hover); border-radius:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+          <div><strong>${escapeHtml(l.name)}</strong> <span style="color:var(--text-muted);">${l.template} · ${l.item_count} item(s)</span></div>
+          <button class="btn secondary" onclick="deleteLayout(${l.id})">Delete</button>
+        </div>
+        <div class="field-row" style="margin-top:8px; margin-bottom:0;">
+          <select id="assign-device-${l.id}">
+            <option value="">Assign to device…</option>
+            ${devices.map(d => `<option value="${d.device_id}">${escapeHtml(d.name || d.device_id)}</option>`).join('')}
+          </select>
+          <button class="btn" onclick="assignLayout(${l.id}, 'device')">Assign</button>
+          <select id="assign-group-${l.id}">
+            <option value="">Assign to group…</option>
+            ${groups.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('')}
+          </select>
+          <button class="btn" onclick="assignLayout(${l.id}, 'group')">Assign</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function assignLayout(layoutId, kind) {
+    const value = document.getElementById(`assign-${kind}-${layoutId}`).value;
+    if (!value) return;
+    const body = kind === 'device' ? { device_id: value } : { group_id: Number(value) };
+    const res = await fetch(`/api/layouts/${layoutId}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    alert(data.ok ? `Assigned — pushed to ${data.notified} device(s).` : (data.error || 'assign failed'));
+  }
+
+  async function deleteLayout(id) {
+    if (!confirm('Delete this layout? Devices showing it will fall back to "no layout assigned".')) return;
+    await fetch(`/api/layouts/${id}`, { method: 'DELETE' });
+    await loadLayouts();
+  }
+
   // ---------------- boot ----------------
 
   async function refreshAll() {
@@ -1057,6 +1320,9 @@
   }
 
   refreshAll();
+  loadAds();
+  loadLayouts();
+  onAdMediaTypeChange();
   setInterval(refreshAll, 15000);
 </script>
 </body>

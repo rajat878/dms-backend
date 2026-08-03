@@ -5,6 +5,8 @@ const { initDb } = require("./db/database");
 const devicesRouter = require("./routes/devices");
 const groupsRouter = require("./routes/groups");
 const apksRouter = require("./routes/apks");
+const adsRouter = require("./routes/ads");
+const layoutsRouter = require("./routes/layouts");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
 
 const app = express();
@@ -29,6 +31,8 @@ app.get("/api/health", (req, res) => {
 app.use("/api/devices", devicesRouter);
 app.use("/api/groups", groupsRouter);
 app.use("/api/apks", apksRouter);
+app.use("/api/ads", adsRouter);
+app.use("/api/layouts", layoutsRouter);
 
 // GET /api/devices/alerts would collide with the /:device_id route in
 // devices.js (Express would treat "alerts" as a device_id), so this lives
