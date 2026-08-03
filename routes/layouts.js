@@ -230,7 +230,7 @@ router.post("/:id/assign", async (req, res) => {
   }
 });
 
-// Queues + instantly pushes a REFRESH_CONTENT command to whichever devices
+// Queues + instantly pushes a REFRESH_CONTENT command
 // are affected, so a newly assigned/edited layout shows up right away
 // instead of waiting up to 15 minutes for the next heartbeat poll.
 async function notifyAssignedDevices(layoutId, target) {
