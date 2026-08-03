@@ -207,7 +207,7 @@ router.post("/:id/assign", async (req, res) => {
         `
         INSERT INTO layout_assignments (layout_id, device_id)
         VALUES ($1, $2)
-        ON CONFLICT (device_id) DO UPDATE SET layout_id = EXCLUDED.layout_id, created_at = NOW()
+        ON CONFLICT (device_id) WHERE device_id IS NOT NULL DO UPDATE SET layout_id = EXCLUDED.layout_id, created_at = NOW()
         `,
         [req.params.id, device_id]
       );
@@ -216,7 +216,7 @@ router.post("/:id/assign", async (req, res) => {
         `
         INSERT INTO layout_assignments (layout_id, group_id)
         VALUES ($1, $2)
-        ON CONFLICT (group_id) DO UPDATE SET layout_id = EXCLUDED.layout_id, created_at = NOW()
+        ON CONFLICT (group_id) WHERE group_id IS NOT NULL DO UPDATE SET layout_id = EXCLUDED.layout_id, created_at = NOW()
         `,
         [req.params.id, group_id]
       );
