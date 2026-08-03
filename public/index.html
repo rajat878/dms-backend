@@ -647,7 +647,58 @@
         <input id="bulk-msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
         <button class="btn" id="bulk-send-btn" onclick="sendBulkMessage()">Send to ${list.length}</button>
       </div>
+      <div class="field-row" style="margin-top:8px;">
+        <select id="bulk-ad-select" style="flex:1;">${adOptionsHtml()}</select>
+        <button class="btn" id="bulk-push-ad-btn" onclick="sendBulkPushAd()">Push to ${list.length}</button>
+        <button class="btn secondary" id="bulk-clear-ad-btn" onclick="sendBulkClearAd()">Clear</button>
+      </div>
     `;
+  }
+
+  // Same instant full-screen-overlay push as the per-device "Push ad"
+  // button, fanned out to every device currently matching the group filter.
+  async function sendBulkPushAd() {
+    const select = document.getElementById('bulk-ad-select');
+    const payload = adPayloadFor(select.value);
+    if (!payload) { alert('Pick an ad first.'); return; }
+
+    const deviceIds = filteredDevices().map(d => d.device_id);
+    const btn = document.getElementById('bulk-push-ad-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Pushing…'; }
+    try {
+      const res = await fetch('/api/devices/bulk-commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_ids: deviceIds, command_type: 'PUSH_AD', payload })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.error || 'Could not push ad'); return; }
+      if (selectedDeviceId) await loadDetail(selectedDeviceId);
+    } catch (err) {
+      alert('Could not reach the server.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = `Push to ${filteredDevices().length}`; }
+    }
+  }
+
+  async function sendBulkClearAd() {
+    const deviceIds = filteredDevices().map(d => d.device_id);
+    const btn = document.getElementById('bulk-clear-ad-btn');
+    if (btn) { btn.disabled = true; }
+    try {
+      const res = await fetch('/api/devices/bulk-commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_ids: deviceIds, command_type: 'CLEAR_AD', payload: {} })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) alert(data.error || 'Could not clear ad');
+      if (selectedDeviceId) await loadDetail(selectedDeviceId);
+    } catch (err) {
+      alert('Could not reach the server.');
+    } finally {
+      if (btn) { btn.disabled = false; }
+    }
   }
 
   // Sends SHOW_MESSAGE to every device currently matching the active group
@@ -808,7 +859,21 @@
           <button class="btn" id="send-msg-btn" onclick="sendMessage('${device.device_id}')">Send</button>
         </div>
 
+        <div class="section-title">Push ad</div>
+        <div class="field-row">
+          <select id="push-ad-select" style="flex:1;">${adOptionsHtml()}</select>
+          <button class="btn" id="push-ad-btn" onclick="pushAd('${device.device_id}')">Push</button>
+          <button class="btn secondary" id="clear-ad-btn" onclick="postCommand('${device.device_id}', 'CLEAR_AD', {}, 'clear-ad-btn')">Clear</button>
+        </div>
+        <div class="cmd-note" style="margin-top:6px;">
+          Shows instantly as a full-screen overlay on top of whatever's on screen right now (same
+          mechanism as Send message) — unlike assigning a layout, which only updates the rotating
+          playlist inside the app and needs the app itself to already be the foreground screen.
+          Requires "Draw over other apps" to be granted on the device.
+        </div>
+
         <div class="section-title">Set report interval</div>
+
         <div class="field-row">
           <input id="interval-minutes" type="number" min="15" step="1" placeholder="minutes (min 15)" />
           <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
@@ -944,6 +1009,31 @@
     const text = input.value.trim();
     if (!text) { input.focus(); return; }
     postCommand(deviceId, 'SHOW_MESSAGE', { text }, 'send-msg-btn').then(() => { input.value = ''; });
+  }
+
+  // Shared by the per-device panel and the bulk-actions box. `ads` (loaded
+  // by loadAds()) may not have arrived yet the first time a panel renders —
+  // that's fine, it just shows the "no ads yet" option until the next
+  // render picks up the loaded list.
+  function adOptionsHtml() {
+    if (!ads.length) return '<option value="">No ads yet — add one below</option>';
+    return ads.map(ad => `<option value="${ad.id}">${escapeHtml(ad.name)} (${ad.media_type})</option>`).join('');
+  }
+
+  function adPayloadFor(adId) {
+    const ad = ads.find(a => a.id === Number(adId));
+    if (!ad) return null;
+    return { media_type: ad.media_type, url: ad.url };
+  }
+
+  // PUSH_AD is the instant, full-screen-overlay push (same mechanism as
+  // SHOW_MESSAGE) — distinct from "Assign" under Layouts, which only sets
+  // what plays inside the app's own rotating playlist.
+  function pushAd(deviceId) {
+    const select = document.getElementById('push-ad-select');
+    const payload = adPayloadFor(select.value);
+    if (!payload) { alert('Pick an ad first.'); return; }
+    postCommand(deviceId, 'PUSH_AD', payload, 'push-ad-btn');
   }
 
   function sendInterval(deviceId) {
@@ -1127,6 +1217,9 @@
       ads = data.ads || [];
       renderAds();
       renderZonePickers();
+      renderBulkActions();
+      const pushSelect = document.getElementById('push-ad-select');
+      if (pushSelect) pushSelect.innerHTML = adOptionsHtml();
     } catch (err) { /* keep last known list on a blip */ }
   }
 
