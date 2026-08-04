@@ -1559,6 +1559,20 @@
       el.innerHTML = '<div class="empty-sub">No layouts yet — create one above.</div>';
       return;
     }
+
+    // Preserve whatever an admin has mid-picked in an assign dropdown —
+    // this function gets re-run every time devices/groups refresh (so a
+    // newly-connected device shows up without a manual reload), and
+    // rebuilding the whole list would otherwise silently reset any
+    // in-progress selection back to the empty placeholder.
+    const preserved = {};
+    layouts.forEach(l => {
+      const deviceSel = document.getElementById(`assign-device-${l.id}`);
+      const groupSel = document.getElementById(`assign-group-${l.id}`);
+      if (deviceSel && deviceSel.value) preserved[`assign-device-${l.id}`] = deviceSel.value;
+      if (groupSel && groupSel.value) preserved[`assign-group-${l.id}`] = groupSel.value;
+    });
+
     el.innerHTML = layouts.map(l => `
       <div style="padding:10px 12px; background:var(--panel-hover); border-radius:6px;">
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
@@ -1579,11 +1593,16 @@
         </div>
       </div>
     `).join('');
+
+    Object.entries(preserved).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    });
   }
 
   async function assignLayout(layoutId, kind) {
     const value = document.getElementById(`assign-${kind}-${layoutId}`).value;
-    if (!value) return;
+    if (!value) { alert(`Pick a ${kind} from the dropdown first.`); return; }
     const body = kind === 'device' ? { device_id: value } : { group_id: Number(value) };
     const res = await fetch(`/api/layouts/${layoutId}/assign`, {
       method: 'POST',
@@ -1609,12 +1628,19 @@
     if (selectedDeviceId) await loadDetail(selectedDeviceId);
   }
 
-  refreshAll();
-  loadAds();
-  loadLayouts();
-  onAdMediaTypeChange();
-  renderTemplatePicker();
-  setInterval(refreshAll, 15000);
+  // devices/groups must be loaded before loadLayouts() renders the
+  // "Assign to device/group" dropdowns — otherwise those dropdowns build
+  // with nothing but the empty placeholder option, and clicking Assign
+  // silently does nothing (nothing was actually selected).
+  async function boot() {
+    await refreshAll();
+    await loadAds();
+    await loadLayouts();
+    onAdMediaTypeChange();
+    renderTemplatePicker();
+    setInterval(refreshAll, 15000);
+  }
+  boot();
 </script>
 </body>
 </html>
