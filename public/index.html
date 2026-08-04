@@ -3,1652 +3,1877 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DMS Fleet Dashboard</title>
+  <title>DMS Control — Fleet Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --panel-hover: #1c2430;
-      --border: #30363d;
-      --text-primary: #e6edf3;
-      --text-secondary: #8b949e;
-      --text-muted: #6e7681;
-      --accent: #d29922;
-      --accent-bg: #3b2f0e;
-      --green: #3fb950;
-      --green-bg: #123822;
-      --amber: #d29922;
-      --amber-bg: #3b2f0e;
-      --red: #f85149;
-      --red-bg: #3d1418;
-      --blue: #58a6ff;
-      --blue-bg: #0d2440;
-      --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text-primary);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 32px 24px 64px;
-    }
-    .wrap { max-width: 1400px; margin: 0 auto; }
-    header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
-      margin: 0;
-      letter-spacing: -0.2px;
-    }
-    h1 span { color: var(--text-secondary); font-weight: 400; }
-    .meta {
-      font-size: 13px;
-      color: var(--text-muted);
-      font-family: var(--mono);
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .stat {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .stat-label {
-      font-size: 12px;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      margin-bottom: 6px;
-    }
-    .stat-value {
-      font-size: 26px;
-      font-weight: 600;
-      font-family: var(--mono);
-    }
-    .stat-value.green { color: var(--green); }
-    .stat-value.red { color: var(--red); }
+    /* ============================= DESIGN TOKENS ============================= */
+    :root{
+      --bg:#0a0e13;
+      --surface:#10161f;
+      --surface-2:#161d29;
+      --surface-3:#1c2531;
+      --border:#212a37;
+      --border-strong:#303c4d;
+      --text:#eef2f7;
+      --text-dim:#8d99ac;
+      --text-faint:#576273;
 
-    #alerts-banner {
-      border: 1px solid var(--red);
-      background: var(--red-bg);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      font-size: 13px;
-    }
-    #alerts-banner .alerts-title {
-      font-weight: 600;
-      color: var(--red);
-      margin-bottom: 4px;
-    }
-    #alerts-banner .alert-line {
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-    #alerts-banner .alert-line b { color: var(--text-primary); font-weight: 500; }
-    #alerts-banner .alert-line:hover b { color: var(--blue); }
+      --teal:#2dd4c8;
+      --teal-dim:#0e2b2a;
+      --teal-strong:#19a89d;
 
-    /* ---- group filter bar ---- */
-    .groupbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 100px;
-      font-size: 12.5px;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--text-secondary);
-      cursor: pointer;
-      user-select: none;
-      white-space: nowrap;
-    }
-    .chip:hover { background: var(--panel-hover); color: var(--text-primary); }
-    .chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
-    .chip .count { color: var(--text-muted); font-family: var(--mono); font-size: 11px; }
-    .chip.active .count { color: var(--accent); opacity: 0.8; }
-    .chip-add {
-      border-style: dashed;
+      --amber:#f2a53d;
+      --amber-dim:#2c2110;
+
+      --red:#f0563f;
+      --red-dim:#2d1512;
+
+      --green:#38d089;
+      --green-dim:#0f2a1e;
+
+      --violet:#9b8cfb;
+      --violet-dim:#201c38;
+
+      --blue:#5eb1f0;
+      --blue-dim:#132638;
+
+      --font-display:'Space Grotesk', 'Inter', system-ui, sans-serif;
+      --font-body:'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono:'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+      --radius-sm:6px;
+      --radius:10px;
+      --radius-lg:14px;
+      --shadow-card:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+      --shadow-pop:0 12px 40px -8px rgba(0,0,0,.65), 0 2px 8px rgba(0,0,0,.4);
+      --sidebar-w:236px;
     }
 
-    /* ---- bulk send box ---- */
-    .bulk-actions {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
+    *,*::before,*::after{box-sizing:border-box;}
+    html,body{height:100%;}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 600px at 100% -10%, rgba(45,212,200,.05), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      font-family:var(--font-body);
+      -webkit-font-smoothing:antialiased;
+      font-size:14px;
     }
-    .bulk-title {
-      font-size: 12.5px;
-      color: var(--text-secondary);
-      margin-bottom: 10px;
-    }
-    .bulk-title b { color: var(--text-primary); }
-    .bulk-count { color: var(--text-muted); font-family: var(--mono); }
-    .bulk-empty { font-size: 12.5px; color: var(--text-muted); }
-
-    /* ---- two-pane layout ---- */
-    .layout {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-    .layout.with-detail {
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    ::selection{background:var(--teal-dim); color:var(--teal);}
+    ::-webkit-scrollbar{width:10px; height:10px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--surface-3); border-radius:8px; border:2px solid var(--bg);}
+    ::-webkit-scrollbar-thumb:hover{background:var(--border-strong);}
+    a{color:inherit;}
+    button{font-family:inherit;}
+    :focus-visible{outline:2px solid var(--teal); outline-offset:2px; border-radius:4px;}
+    @media (prefers-reduced-motion: reduce){
+      *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
     }
 
-    .table-wrap {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th {
-      text-align: left;
-      padding: 12px 16px;
-      color: var(--text-secondary);
-      font-weight: 500;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      font-family: var(--mono);
-      color: var(--text-primary);
-    }
-    tr:last-child td { border-bottom: none; }
-    tr.device-row { cursor: pointer; }
-    tr.device-row:hover td { background: var(--panel-hover); }
-    tr.device-row.selected td { background: var(--blue-bg); }
+    h1,h2,h3,h4{font-family:var(--font-display); margin:0; letter-spacing:-.01em;}
+    .mono{font-family:var(--font-mono);}
+    .hidden{display:none !important;}
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 12px;
-      font-weight: 500;
-      font-family: var(--mono);
-    }
-    .badge.online { background: var(--green-bg); color: var(--green); }
-    .badge.offline { background: var(--red-bg); color: var(--red); }
-    .badge.pending, .badge.delivered { background: var(--amber-bg); color: var(--amber); }
-    .badge.done { background: var(--green-bg); color: var(--green); }
-    .badge.failed { background: var(--red-bg); color: var(--red); }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    /* ============================= SCROLLABLE UTIL ============================= */
+    .text-dim{color:var(--text-dim);}
+    .text-faint{color:var(--text-faint);}
 
-    .bar-track {
-      width: 60px;
-      height: 5px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 8px;
+    /* ============================= LOGIN / CONNECT GATE ============================= */
+    #loginScreen{
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+      padding:24px;
+      background:
+        radial-gradient(900px 500px at 50% 0%, rgba(45,212,200,.07), transparent 65%),
+        var(--bg);
     }
-    .bar-fill { height: 100%; }
-    .bar-fill.green { background: var(--green); }
-    .bar-fill.amber { background: var(--amber); }
-    .bar-fill.red { background: var(--red); }
-
-    .empty {
-      padding: 48px 16px;
-      text-align: center;
-      color: var(--text-muted);
+    .login-card{
+      width:100%; max-width:400px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      padding:32px;
+      box-shadow:var(--shadow-pop);
     }
-    .empty-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
-    .empty-sub { font-size: 12px; }
-
-    /* ---- detail panel ---- */
-    .detail-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 20px 24px;
-      position: sticky;
-      top: 24px;
+    .login-mark{display:flex; align-items:center; gap:10px; margin-bottom:22px;}
+    .login-mark svg{color:var(--teal);}
+    .login-mark .wordmark{font-family:var(--font-display); font-weight:700; font-size:17px; letter-spacing:-.01em;}
+    .login-mark .wordmark span{color:var(--text-dim); font-weight:500;}
+    .login-card h1{font-size:19px; margin-bottom:6px;}
+    .login-card p{color:var(--text-dim); font-size:13px; line-height:1.55; margin:0 0 22px;}
+    .field{margin-bottom:14px;}
+    .field label{display:block; font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em;}
+    .field input, .field select, .field textarea{
+      width:100%; background:var(--surface-3); border:1px solid var(--border-strong);
+      color:var(--text); border-radius:var(--radius-sm); padding:10px 12px; font-size:13.5px;
+      font-family:inherit;
     }
-    .detail-empty {
-      background: var(--panel);
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-      padding: 48px 20px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-    .detail-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      gap: 12px;
-    }
-    .detail-header h2 {
-      font-size: 16px;
-      margin: 0 0 4px;
-      font-family: var(--mono);
-    }
-    .detail-header .sub { font-size: 12px; color: var(--text-muted); }
-    .close-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      border-radius: 6px;
-      width: 26px;
-      height: 26px;
-      cursor: pointer;
-      font-size: 14px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-    .close-btn:hover { background: var(--panel-hover); color: var(--text-primary); }
-
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 16px;
-      font-size: 13px;
-      margin-bottom: 20px;
-    }
-    .info-grid .k { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-    .info-grid .v { font-family: var(--mono); margin-top: 2px; }
-
-    .section-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: var(--text-secondary);
-      margin: 20px 0 10px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-    .section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
-
-    .field-row { display: flex; gap: 8px; margin-bottom: 10px; }
-    .field-row input, .field-row select {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 13px;
-      font-family: inherit;
-    }
-    .field-row input:focus, .field-row select:focus { outline: none; border-color: var(--blue); }
-    .btn {
-      background: var(--blue-bg);
-      color: var(--blue);
-      border: 1px solid var(--blue);
-      border-radius: 6px;
-      padding: 8px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .btn:hover { background: #113355; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn.secondary { background: var(--panel-hover); color: var(--text-primary); border-color: var(--border); }
-    .btn.secondary:hover { background: #232b36; }
-
-    .group-assign { display: flex; gap: 8px; }
-
-    .cmd-log { font-size: 12.5px; }
-    .cmd-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .cmd-row:last-child { border-bottom: none; }
-    .cmd-main { min-width: 0; }
-    .cmd-type { font-family: var(--mono); color: var(--text-primary); }
-    .cmd-note { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; overflow-wrap: anywhere; }
-    .cmd-time { color: var(--text-muted); font-family: var(--mono); font-size: 11px; flex-shrink: 0; }
-    .cmd-log-empty { color: var(--text-muted); font-size: 12.5px; padding: 8px 0; }
-
-    footer {
-      margin-top: 20px;
-      font-size: 12px;
-      color: var(--text-muted);
-      text-align: center;
+    .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--teal);}
+    .field .hint{font-size:11.5px; color:var(--text-faint); margin-top:6px; line-height:1.5;}
+    .login-error{
+      display:none; background:var(--red-dim); border:1px solid rgba(240,86,63,.35); color:#ffb3a6;
+      font-size:12.5px; padding:9px 11px; border-radius:var(--radius-sm); margin-bottom:14px; line-height:1.5;
     }
 
-    @media (max-width: 900px) {
-      .layout.with-detail { grid-template-columns: 1fr; }
-      .detail-panel { position: static; }
+    /* ============================= BUTTONS ============================= */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:7px;
+      font-size:13px; font-weight:600; border-radius:var(--radius-sm);
+      padding:9px 14px; border:1px solid var(--border-strong); background:var(--surface-2);
+      color:var(--text); cursor:pointer; transition:background .12s, border-color .12s, transform .05s;
+      white-space:nowrap;
+    }
+    .btn svg{width:15px; height:15px; flex:none;}
+    .btn:hover{background:var(--surface-3); border-color:var(--border-strong);}
+    .btn:active{transform:translateY(1px);}
+    .btn:disabled{opacity:.45; cursor:not-allowed;}
+    .btn-primary{background:var(--teal); border-color:var(--teal); color:#04231f;}
+    .btn-primary:hover{background:#3fe0d3;}
+    .btn-danger{background:transparent; border-color:rgba(240,86,63,.4); color:#ff9686;}
+    .btn-danger:hover{background:var(--red-dim); border-color:var(--red);}
+    .btn-ghost{background:transparent; border-color:transparent;}
+    .btn-ghost:hover{background:var(--surface-2); border-color:var(--border);}
+    .btn-sm{padding:6px 10px; font-size:12px;}
+    .btn-block{width:100%;}
+    .btn-icon{padding:8px; width:34px; height:34px;}
+
+    /* ============================= APP SHELL ============================= */
+    #app{display:flex; min-height:100vh;}
+
+    .sidebar{
+      width:var(--sidebar-w); flex:none; background:var(--surface);
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column;
+      position:sticky; top:0; height:100vh;
+    }
+    .sidebar-brand{
+      display:flex; align-items:center; gap:10px; padding:20px 18px 16px;
+      border-bottom:1px solid var(--border);
+    }
+    .sidebar-brand svg{color:var(--teal); flex:none;}
+    .sidebar-brand .wordmark{font-family:var(--font-display); font-weight:700; font-size:15.5px;}
+    .sidebar-brand .wordmark span{display:block; font-family:var(--font-body); font-weight:500; font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em; margin-top:1px;}
+
+    .nav{padding:14px 10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto;}
+    .nav-item{
+      display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:8px;
+      color:var(--text-dim); font-size:13.5px; font-weight:500; cursor:pointer; user-select:none;
+      border:1px solid transparent; position:relative;
+    }
+    .nav-item svg{width:17px; height:17px; flex:none; opacity:.85;}
+    .nav-item:hover{background:var(--surface-2); color:var(--text);}
+    .nav-item.active{background:var(--teal-dim); color:var(--teal); font-weight:600;}
+    .nav-item.active svg{opacity:1;}
+    .nav-item .badge{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; font-weight:600; background:var(--surface-3); color:var(--text-dim); padding:1px 6px; border-radius:20px;}
+    .nav-item.active .badge{background:rgba(45,212,200,.18); color:var(--teal);}
+    .nav-item .badge.alert{background:rgba(240,86,63,.18); color:#ff8f7c;}
+    .nav-section-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); padding:14px 11px 6px; font-weight:600;}
+
+    .sidebar-foot{padding:12px; border-top:1px solid var(--border);}
+    .conn-pill{
+      display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim);
+      background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:6px 10px;
+    }
+    .dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--green); box-shadow:0 0 0 3px rgba(56,208,137,.15);}
+    .dot.pulse{animation:pulseDot 2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(56,208,137,.35);}50%{box-shadow:0 0 0 4px rgba(56,208,137,0);}}
+
+    .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+    .topbar{
+      position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:14px;
+      padding:0 24px; height:60px; background:rgba(10,14,19,.85); backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar h2{font-size:16px;}
+    .topbar .sub{color:var(--text-faint); font-size:12px; margin-left:2px;}
+    .topbar-search{
+      margin-left:auto; display:flex; align-items:center; gap:8px; background:var(--surface-2);
+      border:1px solid var(--border); border-radius:8px; padding:7px 11px; width:240px;
+      color:var(--text-faint);
+    }
+    .topbar-search input{background:none; border:none; outline:none; color:var(--text); font-size:13px; width:100%;}
+    .topbar-search svg{flex:none; width:15px; height:15px;}
+    .topbar-clock{font-family:var(--font-mono); font-size:11.5px; color:var(--text-faint); white-space:nowrap;}
+
+    .view{padding:24px; flex:1;}
+    .view-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+    .view-head .lede{color:var(--text-dim); font-size:13px; margin-top:4px; max-width:52ch; line-height:1.5;}
+    .view-actions{display:flex; gap:8px; flex-wrap:wrap;}
+
+    /* ============================= CARDS / GRID ============================= */
+    .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:12px; margin-bottom:20px;}
+    .stat-card{
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px 16px 14px; box-shadow:var(--shadow-card); position:relative; overflow:hidden;
+    }
+    .stat-card .icon-badge{position:absolute; top:14px; right:14px; opacity:.5;}
+    .stat-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px;}
+    .stat-value{font-family:var(--font-display); font-size:27px; font-weight:700;}
+    .stat-value.teal{color:var(--teal);} .stat-value.amber{color:var(--amber);} .stat-value.red{color:var(--red);} .stat-value.green{color:var(--green);}
+    .stat-foot{font-size:11.5px; color:var(--text-faint); margin-top:6px;}
+
+    .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-card);}
+    .card-head{display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--border); gap:12px; flex-wrap:wrap;}
+    .card-head h3{font-size:14.5px;}
+    .card-head .count{color:var(--text-faint); font-size:12px; font-weight:500; margin-left:8px;}
+    .card-body{padding:16px 18px;}
+    .card-body.pad0{padding:0;}
+
+    /* ============================= FLEET PULSE (signature) ============================= */
+    .pulse-strip{
+      display:flex; align-items:flex-end; gap:3px; height:56px; padding:10px 18px 14px; overflow-x:auto;
+    }
+    .pulse-bar{
+      flex:none; width:5px; border-radius:3px 3px 0 0; cursor:pointer; position:relative;
+      transition:transform .12s;
+    }
+    .pulse-bar:hover{transform:scaleY(1.06);}
+    .pulse-bar.online{background:linear-gradient(to top, var(--teal-strong), var(--teal)); animation:pulseBar 2.6s ease-in-out infinite;}
+    .pulse-bar.warn{background:linear-gradient(to top, #8a5f1c, var(--amber));}
+    .pulse-bar.crit{background:linear-gradient(to top, #7c2c20, var(--red));}
+    .pulse-bar.off{background:var(--surface-3);}
+    @keyframes pulseBar{0%,100%{opacity:1;}50%{opacity:.55;}}
+    .pulse-empty{padding:18px; color:var(--text-faint); font-size:12.5px;}
+
+    /* ============================= SIGNAL STATUS ICON ============================= */
+    .signal{display:inline-flex; align-items:flex-end; gap:1.5px; height:12px;}
+    .signal i{display:block; width:2.5px; border-radius:1px; background:var(--surface-3);}
+    .signal i:nth-child(1){height:4px;} .signal i:nth-child(2){height:7px;} .signal i:nth-child(3){height:10px;} .signal i:nth-child(4){height:13px;}
+    .signal.s-online i{background:var(--green);}
+    .signal.s-warn i:nth-child(-n+3){background:var(--amber);}
+    .signal.s-crit i:nth-child(1){background:var(--red);}
+    .signal.s-off i{background:var(--surface-3);}
+
+    /* ============================= TABLE ============================= */
+    .table-wrap{overflow-x:auto;}
+    table{width:100%; border-collapse:collapse; font-size:13px;}
+    thead th{
+      text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; font-weight:700;
+      color:var(--text-faint); padding:10px 18px; border-bottom:1px solid var(--border); white-space:nowrap;
+      background:var(--surface-2);
+    }
+    tbody td{padding:11px 18px; border-bottom:1px solid var(--border); vertical-align:middle;}
+    tbody tr{transition:background .1s;}
+    tbody tr.clickable{cursor:pointer;}
+    tbody tr.clickable:hover{background:var(--surface-2);}
+    tbody tr:last-child td{border-bottom:none;}
+    td.num, th.num{text-align:right;}
+    .cell-primary{font-weight:600;}
+    .cell-sub{color:var(--text-faint); font-size:11.5px; margin-top:2px;}
+
+    /* ============================= BADGES / TAGS ============================= */
+    .badge{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap;}
+    .badge.b-green{background:var(--green-dim); color:var(--green);}
+    .badge.b-amber{background:var(--amber-dim); color:var(--amber);}
+    .badge.b-red{background:var(--red-dim); color:#ff9686;}
+    .badge.b-teal{background:var(--teal-dim); color:var(--teal);}
+    .badge.b-violet{background:var(--violet-dim); color:var(--violet);}
+    .badge.b-blue{background:var(--blue-dim); color:var(--blue);}
+    .badge.b-gray{background:var(--surface-3); color:var(--text-dim);}
+    .badge svg{width:11px; height:11px;}
+
+    /* progress / battery */
+    .meter{width:64px; height:6px; border-radius:4px; background:var(--surface-3); overflow:hidden; flex:none;}
+    .meter > i{display:block; height:100%; border-radius:4px;}
+    .meter-row{display:flex; align-items:center; gap:8px;}
+
+    /* ============================= EMPTY / LOADING ============================= */
+    .empty-state{padding:52px 20px; text-align:center; color:var(--text-faint);}
+    .empty-state svg{color:var(--border-strong); margin-bottom:12px;}
+    .empty-state .t{color:var(--text-dim); font-weight:600; font-size:13.5px; margin-bottom:4px;}
+    .empty-state .d{font-size:12.5px; max-width:36ch; margin:0 auto;}
+    .skel{background:linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%); background-size:400% 100%; animation:skel 1.4s ease infinite; border-radius:6px;}
+    @keyframes skel{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+    /* ============================= MEDIA / CONTENT GRID ============================= */
+    .media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px;}
+    .media-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-card); display:flex; flex-direction:column;}
+    .media-thumb{aspect-ratio:16/9; background:var(--surface-2); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; color:var(--text-faint);}
+    .media-thumb img, .media-thumb video{width:100%; height:100%; object-fit:cover;}
+    .media-thumb .type-chip{position:absolute; top:8px; left:8px;}
+    .media-body{padding:11px 13px 13px; display:flex; flex-direction:column; gap:6px; flex:1;}
+    .media-title{font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .media-meta{font-size:11.5px; color:var(--text-faint); display:flex; justify-content:space-between; align-items:center;}
+    .media-actions{display:flex; gap:6px; margin-top:auto; padding-top:6px;}
+
+    /* layout template diagram */
+    .zone-diagram{display:grid; gap:3px; width:56px; height:36px; flex:none;}
+    .zone-diagram i{background:var(--surface-3); border-radius:3px;}
+    .zone-diagram i.filled{background:var(--teal); opacity:.75;}
+
+    /* ============================= FORM GRID / GENERIC ============================= */
+    .form-row{display:grid; gap:14px;}
+    .form-row.cols-2{grid-template-columns:1fr 1fr;}
+    .radio-tabs{display:flex; gap:6px; background:var(--surface-3); padding:3px; border-radius:9px;}
+    .radio-tabs button{flex:1; border:none; background:none; color:var(--text-dim); padding:7px 8px; font-size:12.5px; font-weight:600; border-radius:7px; cursor:pointer;}
+    .radio-tabs button.active{background:var(--surface); color:var(--teal); box-shadow:0 1px 3px rgba(0,0,0,.4);}
+    .dropzone{border:1.5px dashed var(--border-strong); border-radius:var(--radius); padding:22px; text-align:center; color:var(--text-faint); font-size:12.5px; cursor:pointer;}
+    .dropzone:hover{border-color:var(--teal); color:var(--text-dim);}
+    .dropzone.drag{border-color:var(--teal); background:var(--teal-dim);}
+    .range-row{display:flex; align-items:center; gap:12px;}
+    .range-row input[type=range]{flex:1; accent-color:var(--teal);}
+    .range-row .val{font-family:var(--font-mono); font-size:12.5px; color:var(--text-dim); width:38px; text-align:right;}
+    .toggle{position:relative; display:inline-block; width:38px; height:22px; flex:none;}
+    .toggle input{opacity:0; width:0; height:0;}
+    .toggle .track{position:absolute; inset:0; background:var(--surface-3); border-radius:22px; border:1px solid var(--border-strong); transition:.15s;}
+    .toggle .track::before{content:''; position:absolute; height:16px; width:16px; left:2px; top:2px; background:var(--text-dim); border-radius:50%; transition:.15s;}
+    .toggle input:checked + .track{background:var(--teal-dim); border-color:var(--teal);}
+    .toggle input:checked + .track::before{transform:translateX(16px); background:var(--teal);}
+
+    /* command action grid (device drawer) */
+    .action-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+    .action-btn{
+      display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:12px; text-align:left;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--text);
+    }
+    .action-btn:hover{border-color:var(--border-strong); background:var(--surface-3);}
+    .action-btn svg{color:var(--teal);}
+    .action-btn .label{font-size:12.5px; font-weight:600;}
+    .action-btn .desc{font-size:10.5px; color:var(--text-faint); line-height:1.4;}
+    .action-btn.danger svg{color:var(--red);}
+
+    .inline-form{display:flex; gap:8px; align-items:center;}
+    .inline-form input, .inline-form select{flex:1;}
+
+    fieldset{border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 14px;}
+    legend{font-size:11.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; padding:0 6px;}
+
+    .divider{height:1px; background:var(--border); margin:16px 0; border:none;}
+
+    .timeline{display:flex; flex-direction:column;}
+    .timeline-item{display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);}
+    .timeline-item:last-child{border-bottom:none;}
+    .timeline-dot{width:8px; height:8px; border-radius:50%; margin-top:5px; flex:none;}
+    .timeline-body{flex:1; min-width:0;}
+    .timeline-title{font-size:12.5px; font-weight:600;}
+    .timeline-meta{font-size:11px; color:var(--text-faint); margin-top:2px;}
+
+    /* mini sparkline */
+    .spark{width:100%; height:64px; display:block;}
+
+    /* ============================= DRAWER ============================= */
+    .overlay{position:fixed; inset:0; background:rgba(4,7,10,.6); backdrop-filter:blur(2px); z-index:60; opacity:0; pointer-events:none; transition:opacity .18s;}
+    .overlay.show{opacity:1; pointer-events:auto;}
+    .drawer{
+      position:fixed; top:0; right:0; height:100vh; width:480px; max-width:92vw; background:var(--surface);
+      border-left:1px solid var(--border); z-index:61; transform:translateX(100%); transition:transform .22s cubic-bezier(.2,.8,.2,1);
+      display:flex; flex-direction:column; box-shadow:-24px 0 60px -20px rgba(0,0,0,.6);
+    }
+    .drawer.show{transform:translateX(0);}
+    .drawer-head{padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+    .drawer-title{font-family:var(--font-display); font-size:16.5px; font-weight:700;}
+    .drawer-sub{font-family:var(--font-mono); font-size:11.5px; color:var(--text-faint); margin-top:3px;}
+    .drawer-tabs{display:flex; gap:2px; padding:0 20px; border-bottom:1px solid var(--border); background:var(--surface);}
+    .drawer-tab{padding:11px 4px; margin-right:20px; font-size:12.5px; font-weight:600; color:var(--text-faint); cursor:pointer; border-bottom:2px solid transparent;}
+    .drawer-tab.active{color:var(--teal); border-bottom-color:var(--teal);}
+    .drawer-body{flex:1; overflow-y:auto; padding:18px 20px;}
+
+    /* ============================= MODAL ============================= */
+    .modal-root{position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; pointer-events:none; transition:opacity .15s;}
+    .modal-root.show{opacity:1; pointer-events:auto;}
+    .modal-back{position:absolute; inset:0; background:rgba(4,7,10,.68); backdrop-filter:blur(2px);}
+    .modal{position:relative; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-pop); transform:scale(.97) translateY(6px); transition:transform .18s cubic-bezier(.2,.8,.2,1);}
+    .modal-root.show .modal{transform:scale(1) translateY(0);}
+    .modal-head{padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+    .modal-head h3{font-size:15px;}
+    .modal-body{padding:18px 20px;}
+    .modal-foot{padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px;}
+
+    /* ============================= TOASTS ============================= */
+    .toast-root{position:fixed; bottom:20px; right:20px; z-index:90; display:flex; flex-direction:column; gap:8px; width:320px; max-width:90vw;}
+    .toast{
+      background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:12px 14px;
+      display:flex; align-items:flex-start; gap:10px; box-shadow:var(--shadow-pop); font-size:12.5px; line-height:1.45;
+      animation:toastIn .18s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes toastIn{from{opacity:0; transform:translateY(6px);}to{opacity:1; transform:translateY(0);}}
+    .toast.ok{border-left:3px solid var(--green);}
+    .toast.err{border-left:3px solid var(--red);}
+    .toast.info{border-left:3px solid var(--blue);}
+    .toast svg{flex:none; margin-top:1px;}
+
+    /* ============================= MISC ============================= */
+    .avatar-square{width:32px; height:32px; border-radius:8px; background:var(--surface-3); display:flex; align-items:center; justify-content:center; flex:none; color:var(--text-dim); font-family:var(--font-mono); font-size:11px; font-weight:600;}
+    .flex{display:flex; align-items:center;}
+    .gap8{gap:8px;} .gap10{gap:10px;} .gap12{gap:12px;}
+    .grow{flex:1;}
+    .checkbox{width:15px; height:15px; accent-color:var(--teal);}
+
+    @media (max-width: 880px){
+      .sidebar{position:fixed; z-index:50; transform:translateX(-100%); transition:transform .2s;}
+      .sidebar.open{transform:translateX(0);}
+      .topbar-search{display:none;}
+      .drawer{width:100vw; max-width:100vw;}
+      .action-grid{grid-template-columns:1fr;}
+      .form-row.cols-2{grid-template-columns:1fr;}
     }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>DMS Fleet <span>/ device dashboard</span></h1>
-    <div class="meta" id="last-updated">loading…</div>
-  </header>
 
-  <div id="alerts-banner" style="display:none;"></div>
-
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-label">Total devices</div>
-      <div class="stat-value" id="stat-total">–</div>
+<!-- ============================= CONNECT / LOGIN GATE ============================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/><path d="M7 9l2 2-2 2M13 13h4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="wordmark">DMS Control<span>Fleet Dashboard</span></div>
     </div>
-    <div class="stat">
-      <div class="stat-label">Online</div>
-      <div class="stat-value green" id="stat-online">–</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Offline</div>
-      <div class="stat-value red" id="stat-offline">–</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Power lost</div>
-      <div class="stat-value red" id="stat-unplugged">–</div>
-    </div>
+    <h1>Sign in to your fleet</h1>
+    <p>Enter the admin token for this backend. It's set as <code class="mono">ADMIN_TOKEN</code> on the server — ask whoever deployed it if you don't have one.</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="apiBase">Backend URL</label>
+        <input id="apiBase" type="text" placeholder="https://your-dms-backend.onrender.com" autocomplete="off" />
+        <div class="hint">Leave as-is if this dashboard is served by the same backend.</div>
+      </div>
+      <div class="field">
+        <label for="adminToken">Admin token</label>
+        <input id="adminToken" type="password" placeholder="Paste token — leave blank if auth is disabled" autocomplete="off" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Connect</button>
+    </form>
   </div>
-
-  <div class="groupbar" id="group-bar"></div>
-
-  <div class="bulk-actions" id="bulk-actions"></div>
-
-  <div class="layout" id="layout">
-    <div class="table-wrap">
-      <table>
-        <thead>
-        <tr>
-          <th>Status</th>
-          <th>Device</th>
-          <th>Group</th>
-          <th>Power</th>
-          <th>Free storage</th>
-          <th>Last seen</th>
-        </tr>
-        </thead>
-        <tbody id="device-rows"></tbody>
-      </table>
-      <div class="empty" id="empty-state" style="display:none;">
-        <div class="empty-title">No devices yet</div>
-        <div class="empty-sub">Once your Android agent sends its first heartbeat, it'll show up here.</div>
-      </div>
-    </div>
-
-    <div id="detail-slot">
-      <div class="detail-empty">Select a device to view details and send commands.</div>
-    </div>
-  </div>
-
-  <div class="layout" id="ads-section" style="margin-top:32px;">
-    <div class="table-wrap">
-      <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:15px; font-weight:600;">Ad library</div>
-        <div style="font-size:12px; color:var(--text-muted);">Images, videos, or web/HTML sources for zones below</div>
-      </div>
-      <div style="padding:16px 18px; border-bottom:1px solid var(--border);">
-        <div class="field-row">
-          <input id="ad-name" placeholder="Ad name" style="flex:1; min-width:140px;">
-          <select id="ad-media-type" onchange="onAdMediaTypeChange()">
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-            <option value="web">Web / HTML page</option>
-            <option value="text">Text</option>
-          </select>
-          <input id="ad-duration" type="number" min="1" placeholder="Seconds per play" style="width:150px;" value="10">
-        </div>
-        <div class="field-row" id="ad-upload-row" style="align-items:center;">
-          <input id="ad-file" type="file" accept="image/*,video/*">
-          <span style="color:var(--text-muted); font-size:12px;">or</span>
-          <input id="ad-url" placeholder="https://... external file or page URL" style="flex:1; min-width:220px;">
-        </div>
-        <div class="field-row" id="ad-text-row" style="display:none;">
-          <textarea id="ad-text" placeholder="Text to display (e.g. a promo line, announcement, or quote)" rows="2" style="flex:1; min-width:220px; resize:vertical; background:var(--bg); color:inherit; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:inherit; font-size:13px;"></textarea>
-        </div>
-        <div>
-          <button class="btn" onclick="uploadAd()" id="ad-submit-btn">Add ad</button>
-          <span id="ad-submit-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
-        </div>
-      </div>
-      <div id="ads-list" style="padding:12px 18px; display:grid; gap:6px;"></div>
-    </div>
-
-    <div class="table-wrap" style="margin-top:16px;">
-      <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:15px; font-weight:600;">Layouts</div>
-        <div style="font-size:12px; color:var(--text-muted);">Pick a design, fill every zone, then assign to devices or groups</div>
-      </div>
-      <div style="padding:16px 18px; border-bottom:1px solid var(--border);">
-        <div class="field-row">
-          <input id="layout-name" placeholder="Layout name (e.g. Lobby screen)" style="flex:1; min-width:160px;">
-        </div>
-        <div id="template-picker" style="display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 16px;"></div>
-        <select id="layout-template" onchange="renderZonePickers()" style="display:none;">
-          <option value="split2">2-way split</option>
-          <option value="split3">3-way (hero + 2 side)</option>
-          <option value="grid4">4-way grid</option>
-          <option value="pip">Picture-in-picture</option>
-          <option value="ticker">Main + bottom ticker</option>
-          <option value="ticker_top">Main + top ticker</option>
-        </select>
-        <div id="zone-pickers" style="margin-bottom:10px;"></div>
-        <div>
-          <button class="btn" onclick="createLayout()" id="create-layout-btn">Create layout</button>
-          <span id="layout-submit-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
-        </div>
-      </div>
-      <div id="layouts-list" style="padding:12px 18px; display:grid; gap:10px;"></div>
-    </div>
-  </div>
-
-  <footer>Auto-refreshes every 15 seconds</footer>
 </div>
 
+<!-- ============================= APP SHELL ============================= -->
+<div id="app" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/><path d="M7 9l2 2-2 2M13 13h4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="wordmark">DMS Control<span>Fleet Dashboard</span></div>
+    </div>
+    <nav class="nav" id="navList"></nav>
+    <div class="sidebar-foot">
+      <div class="conn-pill"><span class="dot pulse" id="connDot"></span><span id="connLabel">Connected</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-icon hidden" id="menuToggle" aria-label="Toggle menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round"/></svg>
+      </button>
+      <div>
+        <h2 id="topbarTitle">Overview</h2>
+      </div>
+      <span class="sub" id="topbarSub"></span>
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+        <input id="globalSearch" placeholder="Search devices…" />
+      </div>
+      <span class="topbar-clock" id="topbarClock"></span>
+      <button class="btn btn-ghost btn-icon" id="refreshBtn" title="Refresh now" aria-label="Refresh">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 10-3.2 6.9M21 4v6h-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </header>
+    <main class="view" id="view"></main>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-title" id="drawerTitle">—</div>
+      <div class="drawer-sub" id="drawerSub">—</div>
+    </div>
+    <button class="btn btn-ghost btn-icon" id="drawerClose" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="drawer-tabs" id="drawerTabs"></div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<div class="modal-root" id="modalRoot">
+  <div class="modal-back" id="modalBack"></div>
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast-root" id="toastRoot"></div>
+
 <script>
-  const ONLINE_THRESHOLD_MINUTES = 20;
-  let devices = [];
-  let groups = [];
-  let selectedDeviceId = null;
-  let activeGroupFilter = 'all'; // 'all' | 'uncategorized' | group id (number)
+  /* =====================================================================
+     DMS CONTROL — vanilla JS, no build step (matches the rest of this
+     backend: Express serving a static file). Organized top to bottom:
+     icons -> api client -> state -> utils -> shell/nav -> per-section
+     views -> drawer (device detail) -> modals (create/upload/assign) ->
+     bulk actions -> boot.
+     ===================================================================== */
 
-  function formatBytes(bytes) {
-    if (bytes == null) return '—';
-    const gb = bytes / (1024 ** 3);
-    return gb.toFixed(1) + ' GB';
+  /* ============================= ICONS ============================= */
+  const ICONS = {
+    overview:'<path d="M3 13h6V3H3v10zM3 21h6v-4H3v4zM11 21h6V11h-6v10zM11 3v4h6V3h-6z"/>',
+    devices:'<rect x="4" y="3" width="16" height="12" rx="2"/><path d="M9 21h6M12 15v6" stroke-linecap="round"/>',
+    groups:'<path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 17l8 4 8-4" stroke-linecap="round" stroke-linejoin="round"/>',
+    content:'<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 9" stroke-linecap="round" stroke-linejoin="round"/>',
+    layouts:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9" stroke-linecap="round"/>',
+    apps:'<path d="M12 3l3 3-3 3-3-3 3-3z"/><path d="M4 12l8 5 8-5M4 12v5l8 5 8-5v-5" stroke-linecap="round" stroke-linejoin="round"/>',
+    alerts:'<path d="M12 3a6 6 0 00-6 6v4l-2 3h16l-2-3V9a6 6 0 00-6-6z" stroke-linejoin="round"/><path d="M9.5 20a2.5 2.5 0 005 0" stroke-linecap="round"/>',
+    plus:'<path d="M12 5v14M5 12h14" stroke-linecap="round"/>',
+    trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/>',
+    download:'<path d="M12 3v12M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/>',
+    upload:'<path d="M12 21V9M7 14l5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke-linecap="round"/>',
+    refresh:'<path d="M21 12a9 9 0 10-3.2 6.9M21 4v6h-6" stroke-linecap="round" stroke-linejoin="round"/>',
+    battery:'<rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4" stroke-linecap="round"/>',
+    plug:'<path d="M9 2v6M15 2v6M6 8h12l-1 5a5 5 0 01-10 0L6 8z" stroke-linejoin="round"/><path d="M12 17v5" stroke-linecap="round"/>',
+    volume:'<path d="M4 9v6h4l5 4V5L8 9H4z" stroke-linejoin="round"/><path d="M17 8a5 5 0 010 8" stroke-linecap="round"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>',
+    lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 118 0v4" stroke-linecap="round"/>',
+    unlock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 017.4-2" stroke-linecap="round"/>',
+    power:'<path d="M12 2v8" stroke-linecap="round"/><path d="M6.5 6.5a8 8 0 1011 0" stroke-linecap="round"/>',
+    message:'<path d="M4 5h16v11H8l-4 4V5z" stroke-linejoin="round"/>',
+    send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-linejoin="round"/>',
+    install:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 12l3 3 3-3M12 7v8" stroke-linecap="round" stroke-linejoin="round"/>',
+    ad:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6" stroke-linecap="round"/>',
+    clear:'<path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/>',
+    chevRight:'<path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>',
+    chevDown:'<path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>',
+    check:'<path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>',
+    x:'<path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/>',
+    link:'<path d="M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1.5 1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1.5-1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10" stroke-linecap="round"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1" stroke-linecap="round" stroke-linejoin="round"/>',
+    warn:'<path d="M12 3l10 18H2L12 3z" stroke-linejoin="round"/><path d="M12 9v5h.01M12 17h.01" stroke-linecap="round"/>',
+    danger:'<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6" stroke-linecap="round"/>',
+    monitor:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4" stroke-linecap="round"/>',
+    folder:'<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke-linejoin="round"/>',
+    image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 9" stroke-linecap="round" stroke-linejoin="round"/>',
+    video:'<rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-3v10l-4-3" stroke-linejoin="round"/>',
+    web:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" stroke-linecap="round"/>',
+    text:'<path d="M5 6h14M5 12h14M5 18h9" stroke-linecap="round"/>',
+    bell:'<path d="M12 3a6 6 0 00-6 6v4l-2 3h16l-2-3V9a6 6 0 00-6-6z" stroke-linejoin="round"/><path d="M9.5 20a2.5 2.5 0 005 0" stroke-linecap="round"/>',
+    spark:'<path d="M12 2l1.6 5.3L19 9l-5.4 1.7L12 16l-1.6-5.3L5 9l5.4-1.7L12 2z" stroke-linejoin="round"/>',
+    logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke-linecap="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke-linecap="round" stroke-linejoin="round"/>',
+  };
+  function icon(name, size=16){
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${ICONS[name]||''}</svg>`;
   }
 
-  function timeAgo(isoString) {
-    if (!isoString) return '—';
-    const diffMs = Date.now() - new Date(isoString).getTime();
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return mins + 'm ago';
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return hrs + 'h ago';
-    return Math.floor(hrs / 24) + 'd ago';
-  }
-
-  function isOnline(isoString) {
-    if (!isoString) return false;
-    const diffMs = Date.now() - new Date(isoString).getTime();
-    return diffMs / 60000 < ONLINE_THRESHOLD_MINUTES;
-  }
-
-  function batteryBarClass(pct) {
-    if (pct == null || pct < 0) return 'red';
-    if (pct < 20) return 'red';
-    if (pct < 50) return 'amber';
-    return 'green';
-  }
-
-  // power_connected is tri-state: true = plugged in, false = unplugged
-  // (real alert on always-on-power panel hardware), null/undefined =
-  // device hasn't reported it yet (e.g. hasn't heartbeat-ed since this
-  // field was added).
-  function powerBadgeHtml(powerConnected) {
-    if (powerConnected === true) {
-      return '<span class="badge online"><span class="dot"></span>Plugged in</span>';
-    }
-    if (powerConnected === false) {
-      return '<span class="badge offline"><span class="dot"></span>Unplugged</span>';
-    }
-    return '<span style="color: var(--text-secondary);">—</span>';
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
-
-  // ---------------- data loading ----------------
-
-  async function loadGroups() {
-    try {
-      const res = await fetch('/api/groups');
-      const data = await res.json();
-      groups = data.groups || [];
-      renderGroupBar();
-    } catch (err) {
-      // Group bar just stays as-is on failure; devices list still works.
-    }
-  }
-
-  async function loadDevices() {
-    try {
-      const res = await fetch('/api/devices');
-      const data = await res.json();
-      devices = data.devices || [];
-      renderStats();
-      renderGroupBar();
-      renderBulkActions();
-      renderDeviceRows();
-      document.getElementById('last-updated').textContent =
-        'updated ' + new Date().toLocaleTimeString();
-    } catch (err) {
-      document.getElementById('last-updated').textContent = 'failed to load — retrying…';
-    }
-  }
-
-  // ---------------- rendering: stats + group bar ----------------
-
-  function renderStats() {
-    let onlineCount = 0, unpluggedCount = 0;
-    devices.forEach(d => {
-      if (isOnline(d.last_seen)) onlineCount++;
-      // Only counts devices that have actually reported power_connected
-      // false — null (unknown / never reported) doesn't count as an alert.
-      if (d.power_connected === false) unpluggedCount++;
-    });
-    document.getElementById('stat-total').textContent = devices.length;
-    document.getElementById('stat-online').textContent = onlineCount;
-    document.getElementById('stat-offline').textContent = devices.length - onlineCount;
-    document.getElementById('stat-unplugged').textContent = unpluggedCount;
-  }
-
-  function renderGroupBar() {
-    const bar = document.getElementById('group-bar');
-    const uncategorizedCount = devices.filter(d => !d.group_id).length;
-
-    let html = '';
-    html += chipHtml('all', 'All devices', devices.length, activeGroupFilter === 'all');
-    html += chipHtml('uncategorized', 'Uncategorized', uncategorizedCount, activeGroupFilter === 'uncategorized');
-    groups.forEach(g => {
-      html += chipHtml(g.id, g.name, g.device_count, activeGroupFilter === g.id);
-    });
-    html += `<div class="chip chip-add" onclick="createGroupPrompt()">+ New group</div>`;
-    bar.innerHTML = html;
-  }
-
-  function chipHtml(key, label, count, active) {
-    return `<div class="chip ${active ? 'active' : ''}" onclick="setGroupFilter('${key}')">
-      ${escapeHtml(label)} <span class="count">${count}</span>
-    </div>`;
-  }
-
-  function setGroupFilter(key) {
-    // chip keys come through as strings from the inline handler; group ids
-    // need to be compared as numbers against device.group_id.
-    const num = Number(key);
-    activeGroupFilter = Number.isNaN(num) ? key : num;
-    renderGroupBar();
-    renderBulkActions();
-    renderDeviceRows();
-  }
-
-  async function createGroupPrompt() {
-    const name = prompt('New group name (e.g. "8th Floor", "Lobby Displays"):');
-    if (!name || !name.trim()) return;
-    try {
-      const res = await fetch('/api/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || 'Could not create group');
-        return;
-      }
-      await loadGroups();
-    } catch (err) {
-      alert('Could not reach the server.');
-    }
-  }
-
-  // ---------------- rendering: device table ----------------
-
-  // ---------------- rendering: bulk send box ----------------
-
-  function currentFilterLabel() {
-    if (activeGroupFilter === 'all') return 'All devices';
-    if (activeGroupFilter === 'uncategorized') return 'Uncategorized';
-    const g = groups.find(g => g.id === activeGroupFilter);
-    return g ? g.name : 'devices';
-  }
-
-  function renderBulkActions() {
-    const box = document.getElementById('bulk-actions');
-    if (!box) return;
-    const list = filteredDevices();
-
-    if (list.length === 0) {
-      box.innerHTML = `<div class="bulk-empty">No devices in this view to message.</div>`;
-      return;
-    }
-
-    box.innerHTML = `
-      <div class="bulk-title">Send to <b>${escapeHtml(currentFilterLabel())}</b> <span class="bulk-count">(${list.length} device${list.length === 1 ? '' : 's'})</span></div>
-      <div class="field-row">
-        <input id="bulk-msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
-        <button class="btn" id="bulk-send-btn" onclick="sendBulkMessage()">Send to ${list.length}</button>
-      </div>
-      <div class="field-row" style="margin-top:8px;">
-        <select id="bulk-ad-select" style="flex:1;">${adOptionsHtml()}</select>
-        <button class="btn" id="bulk-push-ad-btn" onclick="sendBulkPushAd()">Push to ${list.length}</button>
-        <button class="btn secondary" id="bulk-clear-ad-btn" onclick="sendBulkClearAd()">Clear</button>
-      </div>
-    `;
-  }
-
-  // Same instant full-screen-overlay push as the per-device "Push ad"
-  // button, fanned out to every device currently matching the group filter.
-  async function sendBulkPushAd() {
-    const select = document.getElementById('bulk-ad-select');
-    const payload = adPayloadFor(select.value);
-    if (!payload) { alert('Pick an ad first.'); return; }
-
-    const deviceIds = filteredDevices().map(d => d.device_id);
-    const btn = document.getElementById('bulk-push-ad-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Pushing…'; }
-    try {
-      const res = await fetch('/api/devices/bulk-commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_ids: deviceIds, command_type: 'PUSH_AD', payload })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { alert(data.error || 'Could not push ad'); return; }
-      if (selectedDeviceId) await loadDetail(selectedDeviceId);
-    } catch (err) {
-      alert('Could not reach the server.');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = `Push to ${filteredDevices().length}`; }
-    }
-  }
-
-  async function sendBulkClearAd() {
-    const deviceIds = filteredDevices().map(d => d.device_id);
-    const btn = document.getElementById('bulk-clear-ad-btn');
-    if (btn) { btn.disabled = true; }
-    try {
-      const res = await fetch('/api/devices/bulk-commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_ids: deviceIds, command_type: 'CLEAR_AD', payload: {} })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) alert(data.error || 'Could not clear ad');
-      if (selectedDeviceId) await loadDetail(selectedDeviceId);
-    } catch (err) {
-      alert('Could not reach the server.');
-    } finally {
-      if (btn) { btn.disabled = false; }
-    }
-  }
-
-  // Sends SHOW_MESSAGE to every device currently matching the active group
-  // filter (all / uncategorized / a specific group). Each device gets its
-  // own command row + FCM push server-side, so this is a single request
-  // regardless of how many devices are targeted.
-  async function sendBulkMessage() {
-    const input = document.getElementById('bulk-msg-text');
-    const text = input.value.trim();
-    if (!text) { input.focus(); return; }
-
-    const deviceIds = filteredDevices().map(d => d.device_id);
-    const btn = document.getElementById('bulk-send-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-
-    try {
-      const res = await fetch('/api/devices/bulk-commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_ids: deviceIds, command_type: 'SHOW_MESSAGE', payload: { text } })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(data.error || 'Could not send bulk message');
-        return;
-      }
-      input.value = '';
-      if (selectedDeviceId) await loadDetail(selectedDeviceId);
-    } catch (err) {
-      alert('Could not reach the server.');
-    } finally {
-      renderBulkActions();
-    }
-  }
-
-  function filteredDevices() {
-    if (activeGroupFilter === 'all') return devices;
-    if (activeGroupFilter === 'uncategorized') return devices.filter(d => !d.group_id);
-    return devices.filter(d => d.group_id === activeGroupFilter);
-  }
-
-  function renderDeviceRows() {
-    const tbody = document.getElementById('device-rows');
-    const emptyState = document.getElementById('empty-state');
-    const list = filteredDevices();
-    tbody.innerHTML = '';
-    emptyState.style.display = list.length === 0 ? 'block' : 'none';
-
-    list.forEach(d => {
-      const online = isOnline(d.last_seen);
-
-      const tr = document.createElement('tr');
-      tr.className = 'device-row' + (d.device_id === selectedDeviceId ? ' selected' : '');
-      tr.onclick = () => selectDevice(d.device_id);
-      tr.innerHTML = `
-        <td>
-          <span class="badge ${online ? 'online' : 'offline'}">
-            <span class="dot"></span>${online ? 'online' : 'offline'}
-          </span>
-        </td>
-        <td>
-          ${escapeHtml(d.name || '—')}<br/>
-          <span style="color: var(--text-secondary); font-size: 11px;">${escapeHtml(d.device_id)}</span>
-        </td>
-        <td style="color: var(--text-secondary);">${escapeHtml(d.group_name || 'Uncategorized')}</td>
-        <td>${powerBadgeHtml(d.power_connected)}</td>
-        <td>${formatBytes(d.storage_free)}</td>
-        <td style="color: var(--text-secondary);">${timeAgo(d.last_seen)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // ---------------- detail panel ----------------
-
-  function selectDevice(deviceId) {
-    selectedDeviceId = deviceId;
-    document.getElementById('layout').classList.add('with-detail');
-    renderDeviceRows();
-    loadDetail(deviceId);
-  }
-
-  function closeDetail() {
-    selectedDeviceId = null;
-    document.getElementById('layout').classList.remove('with-detail');
-    document.getElementById('detail-slot').innerHTML =
-      '<div class="detail-empty">Select a device to view details and send commands.</div>';
-    renderDeviceRows();
-  }
-
-  async function loadDetail(deviceId) {
-    const slot = document.getElementById('detail-slot');
-    try {
-      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}`);
-      const data = await res.json();
-      if (!data.ok) {
-        slot.innerHTML = '<div class="detail-empty">Device not found.</div>';
-        return;
-      }
-      renderDetail(data.device, data.commands || []);
-    } catch (err) {
-      slot.innerHTML = '<div class="detail-empty">Could not load device detail.</div>';
-    }
-  }
-
-  function renderDetail(device, commands) {
-    const slot = document.getElementById('detail-slot');
-    const online = isOnline(device.last_seen);
-
-    // The panel gets fully rebuilt on every 15s auto-refresh (to keep
-    // status/battery/last-seen live) — without this, anything the admin
-    // was mid-typing, or a file they'd just picked in the upload input,
-    // would silently vanish the moment a refresh tick landed.
-    const preserved = {};
-    slot.querySelectorAll('input').forEach(el => {
-      if (el.type === 'file') {
-        if (el.files && el.files[0]) preserved[el.id] = { file: el.files[0] };
-      } else if (el.value) {
-        preserved[el.id] = { value: el.value };
-      }
-    });
-
-    const groupOptions = [`<option value="">Uncategorized</option>`]
-      .concat(groups.map(g => `<option value="${g.id}" ${g.id === device.group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`))
-      .join('');
-
-    slot.innerHTML = `
-      <div class="detail-panel">
-        <div class="detail-header">
-          <div>
-            <h2>${escapeHtml(device.name || device.device_id)}</h2>
-            <div class="sub">${escapeHtml(device.device_id)}</div>
-          </div>
-          <button class="close-btn" onclick="closeDetail()">✕</button>
-        </div>
-
-        <div class="info-grid">
-          <div><div class="k">Status</div><div class="v">
-            <span class="badge ${online ? 'online' : 'offline'}"><span class="dot"></span>${online ? 'online' : 'offline'}</span>
-          </div></div>
-          <div><div class="k">App version</div><div class="v">${escapeHtml(device.app_version || '—')}</div></div>
-          <div><div class="k">Battery</div><div class="v">${device.battery != null && device.battery >= 0 ? device.battery + '%' : '—'}</div></div>
-          <div><div class="k">Power</div><div class="v">${powerBadgeHtml(device.power_connected)}</div></div>
-          <div><div class="k">Free storage</div><div class="v">${formatBytes(device.storage_free)}</div></div>
-          <div><div class="k">Last seen</div><div class="v">${timeAgo(device.last_seen)}</div></div>
-          <div><div class="k">Group</div><div class="v">${escapeHtml(device.group_name || 'Uncategorized')}</div></div>
-        </div>
-
-        <div class="section-title">Assign to group</div>
-        <div class="group-assign">
-          <select id="group-select">${groupOptions}</select>
-          <button class="btn secondary" onclick="assignGroup('${device.device_id}')">Save</button>
-        </div>
-
-        <div class="section-title">Send message</div>
-        <div class="field-row">
-          <input id="msg-text" type="text" placeholder="e.g. Meeting starts in 5 min" maxlength="200" />
-          <button class="btn" id="send-msg-btn" onclick="sendMessage('${device.device_id}')">Send</button>
-        </div>
-
-        <div class="section-title">Push ad</div>
-        <div class="field-row">
-          <select id="push-ad-select" style="flex:1;">${adOptionsHtml()}</select>
-          <button class="btn" id="push-ad-btn" onclick="pushAd('${device.device_id}')">Push</button>
-          <button class="btn secondary" id="clear-ad-btn" onclick="postCommand('${device.device_id}', 'CLEAR_AD', {}, 'clear-ad-btn')">Clear</button>
-        </div>
-        <div class="cmd-note" style="margin-top:6px;">
-          Shows instantly as a full-screen overlay on top of whatever's on screen right now (same
-          mechanism as Send message) — unlike assigning a layout, which only updates the rotating
-          playlist inside the app and needs the app itself to already be the foreground screen.
-          Requires "Draw over other apps" to be granted on the device.
-        </div>
-
-        <div class="section-title">Set report interval</div>
-
-        <div class="field-row">
-          <input id="interval-minutes" type="number" min="15" step="1" placeholder="minutes (min 15)" />
-          <button class="btn" id="send-interval-btn" onclick="sendInterval('${device.device_id}')">Apply</button>
-        </div>
-
-        <div class="section-title">Open app</div>
-        <div class="field-row">
-          <input id="open-app-package" type="text" placeholder="e.g. com.android.chrome" />
-          <button class="btn" id="send-openapp-btn" onclick="sendOpenApp('${device.device_id}')">Launch</button>
-        </div>
-
-        <div class="section-title">Install app</div>
-        <div class="field-row">
-          <input id="apk-upload" type="file" accept=".apk" style="flex:1;" />
-          <button class="btn secondary" id="upload-apk-btn" onclick="uploadApk('${device.device_id}')">Upload</button>
-        </div>
-        <div class="field-row" style="margin-top:8px;">
-          <select id="apk-picker" onchange="document.getElementById('apk-url').value = this.value"></select>
-        </div>
-        <div class="field-row" style="margin-top:8px;">
-          <input id="apk-url" type="text" placeholder="or paste an APK URL directly" />
-          <button class="btn" id="send-install-btn" onclick="sendInstallApp('${device.device_id}')">Install</button>
-        </div>
-        <div class="cmd-note" style="margin-top:6px;">
-          Without Device Owner provisioning this shows the device's normal "Install unknown app?" prompt —
-          someone still has to tap it. With Device Owner it installs silently.
-        </div>
-
-        <div class="section-title">Quick settings</div>
-        <div class="field-row">
-          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Volume</label>
-          <input id="volume-input" type="number" min="0" max="100" value="${device.volume_percent ?? ''}" placeholder="0-100" style="width:80px;" />
-          <button class="btn secondary" id="send-volume-btn" onclick="sendVolume('${device.device_id}')">Set</button>
-          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.volume_percent != null ? device.volume_percent + '%' : '—'}</span>
-        </div>
-        <div class="field-row" style="margin-top:8px;">
-          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Mute</label>
-          <button class="btn secondary" id="send-mute-on-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: true }, 'send-mute-on-btn')">On</button>
-          <button class="btn secondary" id="send-mute-off-btn" onclick="postCommand('${device.device_id}', 'SET_MUTE', { muted: false }, 'send-mute-off-btn')">Off</button>
-          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.muted == null ? '—' : (device.muted ? 'muted' : 'unmuted')}</span>
-        </div>
-        <div class="field-row" style="margin-top:8px;">
-          <label style="width:90px; color: var(--text-secondary); font-size: 12px;">Brightness</label>
-          <input id="brightness-input" type="number" min="0" max="100" value="${device.brightness_percent ?? ''}" placeholder="0-100" style="width:80px;" />
-          <button class="btn secondary" id="send-brightness-btn" onclick="sendBrightness('${device.device_id}')">Set</button>
-          <span style="margin-left:8px; color: var(--text-secondary); font-size: 12px;">current: ${device.brightness_percent != null ? device.brightness_percent + '%' : '—'}</span>
-        </div>
-        <div class="cmd-note" style="margin-top:6px;">
-          Brightness requires the "Modify system settings" permission enabled once on the device
-          (the DMS Agent app itself prompts for this); volume/mute need no special permission.
-        </div>
-
-        <div class="section-title">Device control</div>
-        <div class="field-row">
-          <button class="btn secondary" id="send-lock-btn" onclick="postCommand('${device.device_id}', 'LOCK_DEVICE', {}, 'send-lock-btn')">🔒 Lock now</button>
-          <button class="btn secondary" id="send-reboot-btn" onclick="confirmReboot('${device.device_id}')">↻ Reboot</button>
-        </div>
-        <div class="cmd-note" style="margin-top:6px;">
-          Lock requires device admin to be enabled on the device; reboot requires Device Owner provisioning.
-        </div>
-
-        <div class="field-row" style="margin-top:8px;">
-          <button class="btn secondary" id="send-forcelock-btn" onclick="confirmForceLock('${device.device_id}')">🔐 Force lock (until released)</button>
-          <button class="btn secondary" id="send-releaselock-btn" onclick="postCommand('${device.device_id}', 'RELEASE_LOCK', {}, 'send-releaselock-btn')">🔓 Release lock</button>
-        </div>
-        <div class="cmd-note" style="margin-top:6px;">
-          Android has no remote power-off API for any app — this is the practical equivalent: the device
-          re-locks itself the instant it's unlocked, so it stays unusable until you send Release lock.
-          It shows a visible notification on the device the whole time; it is not covert.
-        </div>
-
-        <div class="section-title">Command history</div>
-        <div class="cmd-log" id="cmd-log">${commandLogHtml(commands)}</div>
-      </div>
-    `;
-
-    Object.entries(preserved).forEach(([id, data]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (data.file) {
-        const dt = new DataTransfer();
-        dt.items.add(data.file);
-        el.files = dt.files;
-      } else if (data.value !== undefined) {
-        el.value = data.value;
-      }
-    });
-
-    populateApkPicker();
-  }
-
-  function commandLogHtml(commands) {
-    if (!commands.length) {
-      return '<div class="cmd-log-empty">No commands sent yet.</div>';
-    }
-    return commands.map(c => `
-      <div class="cmd-row">
-        <div class="cmd-main">
-          <span class="cmd-type">${escapeHtml(c.command_type)}</span>
-          <span class="badge ${c.status}" style="margin-left:8px;">${escapeHtml(c.status)}</span>
-          ${c.result ? `<div class="cmd-note">${escapeHtml(c.result)}</div>` : ''}
-        </div>
-        <div class="cmd-time">${timeAgo(c.created_at)}</div>
-      </div>
-    `).join('');
-  }
-
-  async function postCommand(deviceId, commandType, payload, btnId) {
-    const btn = btnId ? document.getElementById(btnId) : null;
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-    try {
-      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}/commands`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command_type: commandType, payload })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || 'Could not queue command');
-        return;
-      }
-      // Command is queued as "pending" until the device's next heartbeat.
-      await loadDetail(deviceId);
-    } catch (err) {
-      alert('Could not reach the server.');
-    } finally {
-      if (btn) { btn.disabled = false; }
-    }
-  }
-
-  function sendMessage(deviceId) {
-    const input = document.getElementById('msg-text');
-    const text = input.value.trim();
-    if (!text) { input.focus(); return; }
-    postCommand(deviceId, 'SHOW_MESSAGE', { text }, 'send-msg-btn').then(() => { input.value = ''; });
-  }
-
-  // Shared by the per-device panel and the bulk-actions box. `ads` (loaded
-  // by loadAds()) may not have arrived yet the first time a panel renders —
-  // that's fine, it just shows the "no ads yet" option until the next
-  // render picks up the loaded list.
-  function adOptionsHtml() {
-    if (!ads.length) return '<option value="">No ads yet — add one below</option>';
-    return ads.map(ad => `<option value="${ad.id}">${escapeHtml(ad.name)} (${ad.media_type})</option>`).join('');
-  }
-
-  function adPayloadFor(adId) {
-    const ad = ads.find(a => a.id === Number(adId));
-    if (!ad) return null;
-    return { media_type: ad.media_type, url: ad.url };
-  }
-
-  // PUSH_AD is the instant, full-screen-overlay push (same mechanism as
-  // SHOW_MESSAGE) — distinct from "Assign" under Layouts, which only sets
-  // what plays inside the app's own rotating playlist.
-  function pushAd(deviceId) {
-    const select = document.getElementById('push-ad-select');
-    const payload = adPayloadFor(select.value);
-    if (!payload) { alert('Pick an ad first.'); return; }
-    postCommand(deviceId, 'PUSH_AD', payload, 'push-ad-btn');
-  }
-
-  function sendInterval(deviceId) {
-    const input = document.getElementById('interval-minutes');
-    const minutes = parseInt(input.value, 10);
-    if (!minutes || minutes < 15) {
-      alert('Enter 15 or more minutes (WorkManager enforces a 15-minute floor).');
-      return;
-    }
-    postCommand(deviceId, 'SET_REPORT_INTERVAL', { minutes }, 'send-interval-btn');
-  }
-
-  function sendOpenApp(deviceId) {
-    const input = document.getElementById('open-app-package');
-    const packageName = input.value.trim();
-    if (!packageName) { input.focus(); return; }
-    postCommand(deviceId, 'OPEN_APP', { package_name: packageName }, 'send-openapp-btn');
-  }
-
-  function sendVolume(deviceId) {
-    const input = document.getElementById('volume-input');
-    const level = parseInt(input.value, 10);
-    if (isNaN(level) || level < 0 || level > 100) {
-      alert('Enter a volume between 0 and 100.');
-      return;
-    }
-    postCommand(deviceId, 'SET_VOLUME', { level }, 'send-volume-btn');
-  }
-
-  function sendBrightness(deviceId) {
-    const input = document.getElementById('brightness-input');
-    const level = parseInt(input.value, 10);
-    if (isNaN(level) || level < 0 || level > 100) {
-      alert('Enter a brightness between 0 and 100.');
-      return;
-    }
-    postCommand(deviceId, 'SET_BRIGHTNESS', { level }, 'send-brightness-btn');
-  }
-
-  function confirmReboot(deviceId) {
-    if (!confirm('Reboot this device now? It will be unreachable until it finishes restarting.')) return;
-    postCommand(deviceId, 'REBOOT', {}, 'send-reboot-btn');
-  }
-
-  function confirmForceLock(deviceId) {
-    if (!confirm('Force-lock this device? It will re-lock itself on every unlock attempt until you send Release lock.')) return;
-    postCommand(deviceId, 'FORCE_LOCK', {}, 'send-forcelock-btn');
-  }
-
-  function formatBytesShort(bytes) {
-    if (bytes == null) return '';
-    const mb = bytes / (1024 ** 2);
-    return mb >= 1 ? mb.toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
-  }
-
-  async function populateApkPicker() {
-    const select = document.getElementById('apk-picker');
-    if (!select) return;
-    try {
-      const res = await fetch('/api/apks');
-      const data = await res.json();
-      const apks = data.apks || [];
-      select.innerHTML = apks.length
-        ? [`<option value="">— choose a previously uploaded APK —</option>`]
-            .concat(apks.map(a => `<option value="${a.url}">${escapeHtml(a.filename)} (${formatBytesShort(a.size)})</option>`))
-            .join('')
-        : `<option value="">No APKs uploaded yet</option>`;
-    } catch (err) {
-      select.innerHTML = `<option value="">Could not load APK list</option>`;
-    }
-  }
-
-  async function uploadApk(deviceId) {
-    const input = document.getElementById('apk-upload');
-    const file = input.files[0];
-    if (!file) { alert('Choose a .apk file first.'); return; }
-
-    const btn = document.getElementById('upload-apk-btn');
-    btn.disabled = true;
-    btn.textContent = 'Uploading…';
-
-    try {
-      const formData = new FormData();
-      formData.append('apk', file);
-      const res = await fetch('/api/apks', { method: 'POST', body: formData });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(data.error || 'Upload failed');
-        return;
-      }
-      document.getElementById('apk-url').value = data.url;
-      input.value = '';
-      await populateApkPicker();
-    } catch (err) {
-      alert('Could not reach the server.');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Upload';
-    }
-  }
-
-  function sendInstallApp(deviceId) {
-    const input = document.getElementById('apk-url');
-    const apkUrl = input.value.trim();
-    if (!apkUrl) { input.focus(); return; }
-    postCommand(deviceId, 'INSTALL_APP', { apk_url: apkUrl }, 'send-install-btn');
-  }
-
-  async function assignGroup(deviceId) {
-    const select = document.getElementById('group-select');
-    const groupId = select.value ? Number(select.value) : null;
-    try {
-      const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group_id: groupId })
-      });
-      if (!res.ok) {
-        alert('Could not update group.');
-        return;
-      }
-      await loadGroups();
-      await loadDevices();
-      await loadDetail(deviceId);
-    } catch (err) {
-      alert('Could not reach the server.');
-    }
-  }
-
-  // ---------------- alerts banner ----------------
-
-  async function loadAlerts() {
-    const banner = document.getElementById('alerts-banner');
-    try {
-      const res = await fetch('/api/alerts');
-      const data = await res.json();
-      const alerts = data.alerts || [];
-
-      if (alerts.length === 0) {
-        banner.style.display = 'none';
-        banner.innerHTML = '';
-        return;
-      }
-
-      const lineCount = alerts.reduce((sum, d) => sum + d.alerts.length, 0);
-      const lines = alerts.map(d => d.alerts.map(a =>
-        `<div class="alert-line" onclick="selectDevice('${d.device_id}')">
-          <b>${escapeHtml(d.name || d.device_id)}</b> — ${escapeHtml(a.message)}
-        </div>`
-      ).join('')).join('');
-
-      banner.innerHTML = `<div class="alerts-title">${lineCount} active alert${lineCount === 1 ? '' : 's'}</div>${lines}`;
-      banner.style.display = 'block';
-    } catch (err) {
-      // Leave whatever was last shown rather than clearing it on a blip.
-    }
-  }
-
-  // ---------------- ads & layouts ----------------
-
-  let ads = [];
-  let layouts = [];
-  const TEMPLATE_ZONES = {
-    split2: [['left', 'Left'], ['right', 'Right']],
-    split3: [['main', 'Main (hero)'], ['top_right', 'Top right'], ['bottom_right', 'Bottom right']],
-    grid4: [['top_left', 'Top left'], ['top_right', 'Top right'], ['bottom_left', 'Bottom left'], ['bottom_right', 'Bottom right']],
-    pip: [['main', 'Main (fullscreen)'], ['pip', 'Corner overlay']],
-    ticker: [['main', 'Main (fullscreen)'], ['ticker', 'Bottom ticker']],
-    ticker_top: [['main', 'Main (fullscreen)'], ['ticker', 'Top ticker']],
+  /* ============================= STATE ============================= */
+  const state = {
+    base: '',
+    token: '',
+    section: 'overview',
+    devices: [], groups: [], ads: [], layouts: [], layoutTemplates: {}, apks: [], alerts: [],
+    loaded: false,
+    search: '',
+    deviceSort: { key: 'last_seen', dir: 'desc' },
+    selectedDeviceIds: new Set(),
+    autoRefreshTimer: null,
   };
 
-  // Title + a tiny CSS-grid diagram per template, purely so an admin can
-  // recognize the shape at a glance instead of reading "grid4" and having
-  // to guess. grid/areas describe a 2x2 CSS grid; each zone key maps to
-  // the grid-area(s) it occupies (a zone can span more than one cell, e.g.
-  // split3's "main").
-  const TEMPLATE_META = {
-    split2: {
-      title: '2-way split',
-      sub: 'Two equal halves, side by side',
-      cols: 2, rows: 1,
-      areas: { left: '1 / 1 / 2 / 2', right: '1 / 2 / 2 / 3' },
-    },
-    split3: {
-      title: '3-way (hero + 2 side)',
-      sub: 'Big panel plus two stacked smaller ones',
-      cols: 2, rows: 2,
-      areas: { main: '1 / 1 / 3 / 2', top_right: '1 / 2 / 2 / 3', bottom_right: '2 / 2 / 3 / 3' },
-    },
-    grid4: {
-      title: '4-way grid',
-      sub: 'Four equal quadrants',
-      cols: 2, rows: 2,
-      areas: { top_left: '1 / 1 / 2 / 2', top_right: '1 / 2 / 2 / 3', bottom_left: '2 / 1 / 3 / 2', bottom_right: '2 / 2 / 3 / 3' },
-    },
-    pip: {
-      title: 'Picture-in-picture',
-      sub: 'Fullscreen main + small corner overlay',
-      cols: 2, rows: 2,
-      areas: { main: '1 / 1 / 3 / 3', pip: '2 / 2 / 3 / 3' },
-    },
-    ticker: {
-      title: 'Main + bottom ticker',
-      sub: 'Fullscreen main with a thin strip along the bottom',
-      cols: 1, rows: 2,
-      areas: { main: '1 / 1 / 2 / 2', ticker: '2 / 1 / 3 / 2' },
-    },
-    ticker_top: {
-      title: 'Main + top ticker',
-      sub: 'Fullscreen main with a thin running strip along the top',
-      cols: 1, rows: 2,
-      areas: { ticker: '1 / 1 / 2 / 2', main: '2 / 1 / 3 / 2' },
-    },
+  const TEMPLATE_ZONES_FALLBACK = {
+    split2: ['left','right'],
+    split3: ['main','top_right','bottom_right'],
+    grid4: ['top_left','top_right','bottom_left','bottom_right'],
+    pip: ['main','pip'],
+    ticker: ['main','ticker'],
+    ticker_top: ['main','ticker'],
   };
 
-  function templateDiagramHtml(key, small) {
-    const meta = TEMPLATE_META[key];
-    const size = small ? 56 : 84;
-    const cells = Object.entries(meta.areas).map(([zoneKey, area]) => `
-      <div style="grid-area: ${area}; background: var(--panel-hover); border: 1px solid var(--border); border-radius: 3px; ${zoneKey === 'pip' ? 'opacity:0.9;' : ''}"></div>
-    `).join('');
-    return `
-      <div style="width:${size}px; height:${Math.round(size * 0.6)}px; display:grid;
-                  grid-template-columns: repeat(${meta.cols}, 1fr); grid-template-rows: repeat(${meta.rows}, 1fr);
-                  gap:3px; background:var(--bg); border-radius:4px; padding:3px; flex-shrink:0;">
-        ${cells}
-      </div>
-    `;
+  /* ============================= API CLIENT ============================= */
+  async function api(path, opts={}){
+    const headers = opts.headers ? {...opts.headers} : {};
+    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    if (opts.json !== undefined){
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.json);
+    }
+    let res;
+    try{
+      res = await fetch(state.base + path, { ...opts, headers });
+    }catch(e){
+      throw new Error('Network error — could not reach the backend at ' + state.base);
+    }
+    if (res.status === 401){
+      toast('Session expired or token invalid — please reconnect.', 'err');
+      doLogout();
+      throw new Error('unauthorized');
+    }
+    let data = null;
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) data = await res.json().catch(()=>null);
+    if (!res.ok){
+      throw new Error((data && data.error) || `request failed (${res.status})`);
+    }
+    return data;
   }
 
-  // "What will actually show on the device screen right now" — same
-  // template geometry as templateDiagramHtml, but each cell is filled with
-  // the ad(s) currently checked for that zone instead of being blank. This
-  // is what makes it visible up front whether a zone is going to show one
-  // steady image (grid behavior) or rotate between several (playlist
-  // behavior) — both are valid, but the point is you see which one you've
-  // actually set up before pushing it to a real screen.
-  function layoutPreviewHtml(key) {
-    const meta = TEMPLATE_META[key];
-    if (!meta) return '';
-    const zoneKeys = (TEMPLATE_ZONES[key] || []).map(([zoneKey]) => zoneKey);
-    const cells = zoneKeys.map(zoneKey => {
-      const area = meta.areas[zoneKey];
-      const checked = [...document.querySelectorAll(`.zone-check[data-zone="${zoneKey}"]:checked`)]
-        .map(cb => cb.dataset.name || '');
-      let inner;
-      if (checked.length === 0) {
-        inner = `<span style="color:var(--text-muted); font-size:11px;">empty</span>`;
-      } else if (checked.length === 1) {
-        inner = `<span style="font-size:12px; font-weight:600; text-align:center; padding:4px;">${escapeHtml(checked[0])}</span>`;
-      } else {
-        inner = `<div style="text-align:center; padding:4px;">
-            <div style="font-size:11px; color:var(--text-muted);">rotates:</div>
-            <div style="font-size:11px;">${checked.map(escapeHtml).join(' → ')}</div>
-          </div>`;
-      }
-      return `
-        <div style="grid-area: ${area}; background: var(--bg); border: 1.5px dashed ${checked.length ? 'var(--blue)' : 'var(--border)'};
-                    border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-          ${inner}
+  /* ============================= UTILS ============================= */
+  function fmtBytes(n){
+    if (n == null) return '—';
+    n = Number(n);
+    if (n < 1024) return n + ' B';
+    const units = ['KB','MB','GB','TB'];
+    let u = -1;
+    do { n /= 1024; u++; } while (n >= 1024 && u < units.length-1);
+    return n.toFixed(n < 10 ? 1 : 0) + ' ' + units[u];
+  }
+  function fmtRelTime(iso){
+    if (!iso) return 'never';
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const min = Math.floor(diffMs/60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return min + 'm ago';
+    const hr = Math.floor(min/60);
+    if (hr < 24) return hr + 'h ago';
+    const d = Math.floor(hr/24);
+    if (d < 30) return d + 'd ago';
+    return new Date(iso).toLocaleDateString();
+  }
+  function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function minutesSince(iso){ if(!iso) return Infinity; return (Date.now() - new Date(iso).getTime())/60000; }
+
+  // Mirrors the backend's default alert thresholds (alerts.js) purely for
+  // instant client-side status coloring; GET /api/alerts remains the source
+  // of truth for the actual alert list (thresholds may be overridden via env).
+  const OFFLINE_MIN = 20, LOW_BATTERY = 20, LOW_STORAGE = 1024**3;
+
+  function deviceStatus(d){
+    const mins = minutesSince(d.last_seen);
+    if (mins >= OFFLINE_MIN) return 'off';
+    if ((d.battery != null && d.battery < LOW_BATTERY) || (d.storage_free != null && d.storage_free < LOW_STORAGE)) return 'warn';
+    if (d.power_connected === false && d.battery != null && d.battery < 40) return 'warn';
+    return 'online';
+  }
+  function statusMeta(s){
+    return {
+      online:{label:'Online', badge:'b-green', dot:'var(--green)'},
+      warn:{label:'Attention', badge:'b-amber', dot:'var(--amber)'},
+      crit:{label:'Critical', badge:'b-red', dot:'var(--red)'},
+      off:{label:'Offline', badge:'b-gray', dot:'var(--text-faint)'},
+    }[s];
+  }
+  function signalIcon(s){
+    return `<span class="signal s-${s==='online'?'online':s==='warn'?'warn':s==='crit'?'crit':'off'}"><i></i><i></i><i></i><i></i></span>`;
+  }
+  function deviceLabel(d){ return d.name || d.device_id; }
+
+  function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  /* ============================= TOASTS ============================= */
+  function toast(msg, type='info'){
+    const root = document.getElementById('toastRoot');
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    const ic = type==='ok'?'check':type==='err'?'danger':'info';
+    const color = type==='ok'?'var(--green)':type==='err'?'var(--red)':'var(--blue)';
+    el.innerHTML = `<span style="color:${color}">${icon(ic,15)}</span><span>${esc(msg)}</span>`;
+    root.appendChild(el);
+    setTimeout(()=>{ el.style.transition='opacity .25s, transform .25s'; el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(), 260); }, 3800);
+  }
+
+  /* ============================= MODAL ============================= */
+  function openModal(html, {wide=false}={}){
+    const modal = document.getElementById('modal');
+    modal.style.maxWidth = wide ? '680px' : '520px';
+    modal.innerHTML = html;
+    document.getElementById('modalRoot').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    document.getElementById('modalRoot').classList.remove('show');
+    document.body.style.overflow = '';
+    setTimeout(()=>{ document.getElementById('modal').innerHTML=''; }, 150);
+  }
+  document.getElementById('modalBack').addEventListener('click', closeModal);
+
+  function confirmAction(message, {danger=true, confirmLabel='Delete'}={}){
+    return new Promise(resolve=>{
+      openModal(`
+        <div class="modal-head"><h3>Are you sure?</h3></div>
+        <div class="modal-body"><p style="color:var(--text-dim); font-size:13px; line-height:1.6; margin:0;">${esc(message)}</p></div>
+        <div class="modal-foot">
+          <button class="btn" id="cfNo">Cancel</button>
+          <button class="btn ${danger?'btn-danger':'btn-primary'}" id="cfYes">${esc(confirmLabel)}</button>
         </div>
-      `;
-    }).join('');
-    return `
-      <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Preview — this is what the device screen will show:</div>
-      <div style="width:260px; height:160px; display:grid;
-                  grid-template-columns: repeat(${meta.cols}, 1fr); grid-template-rows: repeat(${meta.rows}, 1fr);
-                  gap:4px; background:var(--panel-hover); border-radius:6px; padding:6px;">
-        ${cells}
-      </div>
-    `;
+      `);
+      document.getElementById('cfNo').onclick = ()=>{ closeModal(); resolve(false); };
+      document.getElementById('cfYes').onclick = ()=>{ closeModal(); resolve(true); };
+    });
   }
 
-  let selectedTemplate = 'split2';
+  /* ============================= DRAWER ============================= */
+  function openDrawer(){
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('drawer').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer(){
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('drawer').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('overlay').addEventListener('click', closeDrawer);
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
 
-  function renderTemplatePicker() {
-    const el = document.getElementById('template-picker');
-    if (!el) return;
-    el.innerHTML = Object.keys(TEMPLATE_META).map(key => {
-      const meta = TEMPLATE_META[key];
-      const active = key === selectedTemplate;
-      return `
-        <div onclick="selectTemplate('${key}')"
-             style="cursor:pointer; display:flex; align-items:center; gap:10px; padding:10px 12px;
-                    border-radius:8px; border:1.5px solid ${active ? 'var(--blue)' : 'var(--border)'};
-                    background:${active ? 'var(--panel-hover)' : 'transparent'}; min-width:220px;">
-          ${templateDiagramHtml(key, true)}
-          <div>
-            <div style="font-size:13px; font-weight:600;">${meta.title}</div>
-            <div style="font-size:11px; color:var(--text-muted);">${meta.sub}</div>
+  // Global delegated handlers — work regardless of when the target element
+  // was rendered, so per-view render functions don't need to rebind these.
+  document.addEventListener('click', (e)=>{
+    const openDev = e.target.closest('[data-open-device]');
+    if (openDev){ openDeviceDrawer(openDev.dataset.openDevice); return; }
+    const navTo = e.target.closest('[data-nav-to]');
+    if (navTo){ navigate(navTo.dataset.navTo); return; }
+  });
+
+  /* ============================= LOGIN / BOOT ============================= */
+  function doLogout(){
+    localStorage.removeItem('dms_base');
+    localStorage.removeItem('dms_token');
+    location.reload();
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const base = document.getElementById('apiBase').value.trim().replace(/\/$/,'') || '';
+    const token = document.getElementById('adminToken').value.trim();
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'Connecting…';
+    state.base = base; state.token = token;
+    try{
+      await api('/api/health');
+      // A protected call verifies the token (health is intentionally public).
+      await api('/api/devices');
+      localStorage.setItem('dms_base', base);
+      localStorage.setItem('dms_token', token);
+      enterApp();
+    }catch(err){
+      errBox.textContent = err.message === 'unauthorized' ? 'Invalid admin token.' : err.message;
+      errBox.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Connect';
+    }
+  });
+
+  function enterApp(){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    buildNav();
+    loadAll(true);
+    setInterval(()=>{ document.getElementById('topbarClock').textContent = new Date().toLocaleTimeString(); }, 1000);
+    state.autoRefreshTimer = setInterval(()=>loadAll(false), 30000);
+  }
+
+  (function boot(){
+    const savedBase = localStorage.getItem('dms_base');
+    const savedToken = localStorage.getItem('dms_token');
+    document.getElementById('apiBase').value = savedBase ?? location.origin;
+    if (savedBase !== null || savedToken){
+      state.base = savedBase || '';
+      state.token = savedToken || '';
+      api('/api/devices').then(()=>enterApp()).catch(()=>{ /* fall back to login form, prefilled */
+        document.getElementById('adminToken').value = savedToken || '';
+      });
+    }
+  })();
+
+  /* ============================= NAV / ROUTER ============================= */
+  const SECTIONS = [
+    { id:'overview', label:'Overview', icon:'overview' },
+    { id:'devices', label:'Devices', icon:'devices', countKey:'devices' },
+    { id:'groups', label:'Groups', icon:'groups', countKey:'groups' },
+    { id:'content', label:'Content Library', icon:'content', countKey:'ads' },
+    { id:'layouts', label:'Layouts', icon:'layouts', countKey:'layouts' },
+    { id:'apps', label:'Applications', icon:'apps', countKey:'apks' },
+    { id:'alerts', label:'Alerts', icon:'alerts', countKey:'alerts', alertKey:true },
+  ];
+  const SECTION_SUB = {
+    overview:'Fleet health at a glance', devices:'Every screen you manage, live',
+    groups:'Organize devices for bulk control', content:'Images, video, web pages & text',
+    layouts:'Multi-zone screen templates', apps:'APKs you can push to any device', alerts:'Devices needing attention',
+  };
+
+  function buildNav(){
+    const nav = document.getElementById('navList');
+    nav.innerHTML = SECTIONS.map(s=>`
+      <div class="nav-item ${state.section===s.id?'active':''}" data-nav="${s.id}">
+        ${icon(s.icon,17)}<span>${s.label}</span>
+        <span class="badge ${s.alertKey && state[s.countKey]?.length ? 'alert':''}" id="navcount-${s.id}"></span>
+      </div>`).join('');
+    nav.querySelectorAll('[data-nav]').forEach(el=>{
+      el.addEventListener('click', ()=>navigate(el.dataset.nav));
+    });
+    updateNavCounts();
+  }
+  function updateNavCounts(){
+    SECTIONS.forEach(s=>{
+      const el = document.getElementById('navcount-'+s.id);
+      if (!el || !s.countKey) return;
+      const n = (state[s.countKey]||[]).length;
+      el.textContent = n;
+      el.style.display = n ? 'inline-flex' : 'none';
+      el.classList.toggle('alert', !!(s.alertKey && n));
+    });
+  }
+  function navigate(id){
+    state.section = id;
+    document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.nav===id));
+    document.getElementById('topbarTitle').textContent = SECTIONS.find(s=>s.id===id).label;
+    document.getElementById('topbarSub').textContent = SECTION_SUB[id] || '';
+    document.getElementById('sidebar').classList.remove('open');
+    renderView();
+  }
+  document.getElementById('menuToggle').addEventListener('click', ()=>document.getElementById('sidebar').classList.toggle('open'));
+  document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAll(false); toast('Refreshed', 'ok'); });
+  document.getElementById('globalSearch').addEventListener('input', debounce(e=>{
+    state.search = e.target.value.trim().toLowerCase();
+    if (state.section !== 'devices') navigate('devices'); else renderView();
+  }, 220));
+
+  /* ============================= DATA LOAD ============================= */
+  async function loadAll(first){
+    const dot = document.getElementById('connDot'), label = document.getElementById('connLabel');
+    try{
+      const [devicesRes, groupsRes, adsRes, layoutsRes, apksRes, alertsRes] = await Promise.all([
+        api('/api/devices'), api('/api/groups'), api('/api/ads'), api('/api/layouts'), api('/api/apks'), api('/api/alerts'),
+      ]);
+      state.devices = devicesRes.devices || [];
+      state.groups = groupsRes.groups || [];
+      state.ads = adsRes.ads || [];
+      state.layouts = layoutsRes.layouts || [];
+      state.layoutTemplates = layoutsRes.templates || TEMPLATE_ZONES_FALLBACK;
+      state.apks = apksRes.apks || [];
+      state.alerts = alertsRes.alerts || [];
+      state.loaded = true;
+      dot.style.background = 'var(--green)'; label.textContent = 'Connected';
+      updateNavCounts();
+      renderView();
+    }catch(err){
+      dot.style.background = 'var(--red)'; label.textContent = 'Connection issue';
+      if (first) toast(err.message, 'err');
+    }
+  }
+
+  /* ============================= VIEW DISPATCH ============================= */
+  function renderView(){
+    const v = document.getElementById('view');
+    const renderers = { overview:renderOverview, devices:renderDevices, groups:renderGroups, content:renderContent, layouts:renderLayouts, apps:renderApps, alerts:renderAlerts };
+    v.innerHTML = renderers[state.section] ? renderers[state.section]() : '';
+    wireSectionEvents();
+  }
+
+  /* ============================= OVERVIEW ============================= */
+  function renderOverview(){
+    const devices = state.devices;
+    const online = devices.filter(d=>deviceStatus(d)==='online').length;
+    const offline = devices.filter(d=>deviceStatus(d)==='off').length;
+    const needsAttention = state.alerts.length;
+    const avgBattery = (()=>{ const vals = devices.filter(d=>d.battery!=null).map(d=>d.battery); return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null; })();
+
+    const pulse = devices.length === 0 ? `<div class="pulse-empty">No devices have checked in yet. Once your Android agents send a heartbeat, they'll show up here.</div>` :
+      `<div class="pulse-strip">${devices.slice().sort((a,b)=>(a.device_id>b.device_id?1:-1)).map(d=>{
+        const s = deviceStatus(d);
+        const h = s==='online' ? 100 : s==='warn' ? 62 : 30;
+        return `<div class="pulse-bar ${s==='off'?'off':s==='warn'?'warn':'online'}" style="height:${h}%" data-open-device="${esc(d.device_id)}" title="${esc(deviceLabel(d))} — ${statusMeta(s).label}"></div>`;
+      }).join('')}</div>`;
+
+    const recentAlerts = state.alerts.slice(0,6);
+    const alertsHtml = recentAlerts.length === 0
+      ? `<div class="empty-state" style="padding:32px 16px;">${icon('check',28)}<div class="t">All clear</div><div class="d">No devices are currently offline, low on battery, or low on storage.</div></div>`
+      : `<div class="timeline">${recentAlerts.map(a=>`
+          <div class="timeline-item">
+            <span class="timeline-dot" style="background:${a.alerts.some(x=>x.type==='offline')?'var(--red)':'var(--amber)'}"></span>
+            <div class="timeline-body">
+              <div class="timeline-title">${esc(a.name || a.device_id)}</div>
+              <div class="timeline-meta">${a.alerts.map(x=>esc(x.message)).join(' · ')}</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" data-open-device="${esc(a.device_id)}">View</button>
+          </div>`).join('')}</div>`;
+
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Fleet overview</h1><div class="lede">Live status across every registered screen, refreshed every 30s.</div></div>
+        <div class="view-actions">
+          <button class="btn" data-nav-to="content">${icon('upload')} Upload content</button>
+          <button class="btn btn-primary" data-nav-to="layouts">${icon('plus')} New layout</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><span class="icon-badge" style="color:var(--teal)">${icon('devices',20)}</span><div class="stat-label">Total devices</div><div class="stat-value">${devices.length}</div><div class="stat-foot">${state.groups.length} group${state.groups.length===1?'':'s'}</div></div>
+        <div class="stat-card"><span class="icon-badge" style="color:var(--green)">${icon('power',20)}</span><div class="stat-label">Online now</div><div class="stat-value green">${online}</div><div class="stat-foot">heartbeat within ${OFFLINE_MIN} min</div></div>
+        <div class="stat-card"><span class="icon-badge" style="color:var(--text-faint)">${icon('monitor',20)}</span><div class="stat-label">Offline</div><div class="stat-value">${offline}</div><div class="stat-foot">no recent heartbeat</div></div>
+        <div class="stat-card"><span class="icon-badge" style="color:var(--amber)">${icon('alerts',20)}</span><div class="stat-label">Needs attention</div><div class="stat-value ${needsAttention?'amber':''}">${needsAttention}</div><div class="stat-foot">low battery, storage or offline</div></div>
+        <div class="stat-card"><span class="icon-badge" style="color:var(--violet)">${icon('content',20)}</span><div class="stat-label">Content items</div><div class="stat-value">${state.ads.length}</div><div class="stat-foot">${state.layouts.length} layout${state.layouts.length===1?'':'s'} built</div></div>
+        <div class="stat-card"><span class="icon-badge" style="color:var(--blue)">${icon('battery',20)}</span><div class="stat-label">Avg. battery</div><div class="stat-value ${avgBattery!=null && avgBattery<30 ? 'amber':''}">${avgBattery!=null?avgBattery+'%':'—'}</div><div class="stat-foot">across reporting devices</div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h3>Fleet pulse</h3><span class="text-faint" style="font-size:11.5px;">bar height = signal health, click to inspect</span></div>
+        <div class="card-body pad0">${pulse}</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:16px;" class="ov-grid">
+        <div class="card">
+          <div class="card-head"><h3>Devices</h3><button class="btn btn-sm" data-nav-to="devices">View all ${icon('chevRight',13)}</button></div>
+          <div class="card-body pad0 table-wrap">
+            <table><thead><tr><th>Device</th><th>Status</th><th class="num">Battery</th><th>Last seen</th></tr></thead>
+            <tbody>${devices.slice(0,6).map(d=>{
+              const s = deviceStatus(d);
+              return `<tr class="clickable" data-open-device="${esc(d.device_id)}">
+                <td><div class="cell-primary">${esc(deviceLabel(d))}</div><div class="cell-sub mono">${esc(d.device_id)}</div></td>
+                <td><span class="badge ${statusMeta(s).badge}">${signalIcon(s)} ${statusMeta(s).label}</span></td>
+                <td class="num mono">${d.battery!=null?d.battery+'%':'—'}</td>
+                <td class="text-dim">${fmtRelTime(d.last_seen)}</td>
+              </tr>`;
+            }).join('') || `<tr><td colspan="4"><div class="empty-state">${icon('devices',28)}<div class="t">No devices yet</div><div class="d">Install the DMS Agent app on a screen to see it here.</div></div></td></tr>`}</tbody></table>
           </div>
         </div>
-      `;
-    }).join('');
-  }
-
-  function selectTemplate(key) {
-    selectedTemplate = key;
-    document.getElementById('layout-template').value = key;
-    renderTemplatePicker();
-    renderZonePickers();
-  }
-
-  function onAdMediaTypeChange() {
-    const mediaType = document.getElementById('ad-media-type').value;
-    const isWeb = mediaType === 'web';
-    const isText = mediaType === 'text';
-    document.getElementById('ad-upload-row').style.display = isText ? 'none' : '';
-    document.getElementById('ad-file').style.display = isWeb ? 'none' : '';
-    document.getElementById('ad-file').disabled = isWeb || isText;
-    document.getElementById('ad-text-row').style.display = isText ? '' : 'none';
-  }
-
-  async function loadAds() {
-    try {
-      const res = await fetch('/api/ads');
-      const data = await res.json();
-      ads = data.ads || [];
-      renderAds();
-      renderZonePickers();
-      renderBulkActions();
-      const pushSelect = document.getElementById('push-ad-select');
-      if (pushSelect) pushSelect.innerHTML = adOptionsHtml();
-    } catch (err) { /* keep last known list on a blip */ }
-  }
-
-  function renderAds() {
-    const el = document.getElementById('ads-list');
-    if (ads.length === 0) {
-      el.innerHTML = '<div class="empty-sub">No ads yet — add one above.</div>';
-      return;
-    }
-    el.innerHTML = ads.map(ad => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--panel-hover); border-radius:6px; font-size:13px;">
-        <div style="min-width:0;">
-          <strong>${escapeHtml(ad.name)}</strong>
-          <span style="color:var(--text-muted); margin-left:8px;">${ad.media_type} · ${ad.duration_seconds}s${ad.size ? ' · ' + formatBytesShort(ad.size) : ''}</span>
-          ${ad.media_type === 'text' ? `<div style="color:var(--text-muted); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:520px;">\u201c${escapeHtml(ad.url)}\u201d</div>` : ''}
-        </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-          ${ad.media_type === 'text' ? '' : `<a href="${ad.url}" target="_blank" style="font-size:12px; color:var(--blue);">preview</a>`}
-          <button class="btn secondary" onclick="deleteAd(${ad.id})">Delete</button>
+        <div class="card">
+          <div class="card-head"><h3>Recent alerts</h3><button class="btn btn-sm" data-nav-to="alerts">View all ${icon('chevRight',13)}</button></div>
+          <div class="card-body">${alertsHtml}</div>
         </div>
       </div>
-    `).join('');
+      <style>@media(max-width:1000px){.ov-grid{grid-template-columns:1fr !important;}}</style>
+    `;
   }
 
-  async function uploadAd() {
-    const name = document.getElementById('ad-name').value.trim();
-    const mediaType = document.getElementById('ad-media-type').value;
-    const duration = document.getElementById('ad-duration').value || undefined;
-    const url = document.getElementById('ad-url').value.trim();
-    const text = document.getElementById('ad-text').value.trim();
-    const fileInput = document.getElementById('ad-file');
-    const status = document.getElementById('ad-submit-status');
+  /* ============================= DEVICES ============================= */
+  let deviceFilterStatus = 'all';
+  let deviceFilterGroup = 'all';
 
-    if (!name) { status.textContent = 'name is required'; return; }
+  function filteredDevices(){
+    let list = state.devices.slice();
+    if (state.search){
+      list = list.filter(d => deviceLabel(d).toLowerCase().includes(state.search) || d.device_id.toLowerCase().includes(state.search));
+    }
+    if (deviceFilterStatus !== 'all') list = list.filter(d => deviceStatus(d) === deviceFilterStatus);
+    if (deviceFilterGroup !== 'all') list = list.filter(d => String(d.group_id) === deviceFilterGroup);
+    const { key, dir } = state.deviceSort;
+    list.sort((a,b)=>{
+      let av = a[key], bv = b[key];
+      if (key === 'last_seen'){ av = av ? new Date(av).getTime() : -1; bv = bv ? new Date(bv).getTime() : -1; }
+      if (av == null) av = -1; if (bv == null) bv = -1;
+      if (av < bv) return dir==='asc' ? -1 : 1;
+      if (av > bv) return dir==='asc' ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }
 
-    status.textContent = 'saving…';
-    try {
-      let res;
-      if (mediaType === 'text') {
-        if (!text) { status.textContent = 'text content is required'; return; }
-        res = await fetch('/api/ads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, media_type: 'text', external_url: text, duration_seconds: duration ? Number(duration) : undefined }),
-        });
-      } else if (mediaType !== 'web' && fileInput.files.length > 0) {
-        const form = new FormData();
-        form.append('file', fileInput.files[0]);
-        form.append('name', name);
-        form.append('media_type', mediaType);
-        if (duration) form.append('duration_seconds', duration);
-        res = await fetch('/api/ads', { method: 'POST', body: form });
-      } else {
-        if (!url) { status.textContent = 'a file or a URL is required'; return; }
-        res = await fetch('/api/ads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, media_type: mediaType, external_url: url, duration_seconds: duration ? Number(duration) : undefined }),
-        });
+  function renderDevices(){
+    const list = filteredDevices();
+    const groupOptions = state.groups.map(g=>`<option value="${g.id}">${esc(g.name)} (${g.device_count})</option>`).join('');
+    const selCount = state.selectedDeviceIds.size;
+
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Devices</h1><div class="lede">${state.devices.length} registered · ${state.devices.filter(d=>deviceStatus(d)==='online').length} online right now.</div></div>
+        <div class="view-actions">
+          <select id="filterStatus" class="btn" style="padding:8px 10px;">
+            <option value="all" ${deviceFilterStatus==='all'?'selected':''}>All statuses</option>
+            <option value="online" ${deviceFilterStatus==='online'?'selected':''}>Online</option>
+            <option value="warn" ${deviceFilterStatus==='warn'?'selected':''}>Needs attention</option>
+            <option value="off" ${deviceFilterStatus==='off'?'selected':''}>Offline</option>
+          </select>
+          <select id="filterGroup" class="btn" style="padding:8px 10px;">
+            <option value="all" ${deviceFilterGroup==='all'?'selected':''}>All groups</option>
+            ${groupOptions}
+          </select>
+        </div>
+      </div>
+
+      ${selCount>0 ? `
+      <div class="card" style="margin-bottom:14px; border-color:var(--teal);">
+        <div class="card-body" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span class="badge b-teal">${selCount} selected</span>
+          <div id="bulkCommandArea" style="flex:1; min-width:260px;"></div>
+          <button class="btn btn-sm btn-ghost" id="clearSelection">Clear</button>
+        </div>
+      </div>` : ''}
+
+      <div class="card">
+        <div class="card-body pad0 table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:34px;"><input type="checkbox" class="checkbox" id="selectAllDevices" ${selCount && selCount===list.length ? 'checked':''}></th>
+              <th data-sort="name">Device ${sortArrow('name')}</th>
+              <th>Status</th>
+              <th>Group</th>
+              <th class="num" data-sort="battery">Battery ${sortArrow('battery')}</th>
+              <th class="num">Storage free</th>
+              <th data-sort="app_version">Agent ${sortArrow('app_version')}</th>
+              <th data-sort="last_seen">Last seen ${sortArrow('last_seen')}</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              ${list.map(d=>{
+                const s = deviceStatus(d);
+                const battColor = d.battery==null ? 'var(--surface-3)' : d.battery<20?'var(--red)':d.battery<40?'var(--amber)':'var(--green)';
+                return `<tr class="clickable" data-device-row="${esc(d.device_id)}">
+                  <td onclick="event.stopPropagation()"><input type="checkbox" class="checkbox device-check" data-id="${esc(d.device_id)}" ${state.selectedDeviceIds.has(d.device_id)?'checked':''}></td>
+                  <td data-open-device="${esc(d.device_id)}"><div class="cell-primary">${esc(deviceLabel(d))}</div><div class="cell-sub mono">${esc(d.device_id)}</div></td>
+                  <td data-open-device="${esc(d.device_id)}"><span class="badge ${statusMeta(s).badge}">${signalIcon(s)} ${statusMeta(s).label}</span></td>
+                  <td data-open-device="${esc(d.device_id)}">${d.group_name ? `<span class="badge b-gray">${icon('groups',11)} ${esc(d.group_name)}</span>` : '<span class="text-faint">Uncategorized</span>'}</td>
+                  <td class="num" data-open-device="${esc(d.device_id)}"><div class="meter-row" style="justify-content:flex-end;"><span class="mono">${d.battery!=null?d.battery+'%':'—'}</span><div class="meter"><i style="width:${d.battery??0}%; background:${battColor}"></i></div></div></td>
+                  <td class="num mono" data-open-device="${esc(d.device_id)}">${fmtBytes(d.storage_free)}</td>
+                  <td class="mono text-dim" data-open-device="${esc(d.device_id)}">${esc(d.app_version||'—')}</td>
+                  <td class="text-dim" data-open-device="${esc(d.device_id)}">${fmtRelTime(d.last_seen)}</td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-ghost" data-open-device="${esc(d.device_id)}">Manage</button></td>
+                </tr>`;
+              }).join('') || `<tr><td colspan="9"><div class="empty-state">${icon('devices',30)}<div class="t">No devices match</div><div class="d">Try clearing filters or search, or wait for a device to check in.</div></div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+  function sortArrow(key){
+    if (state.deviceSort.key !== key) return '';
+    return state.deviceSort.dir === 'asc' ? '▲' : '▼';
+  }
+
+  const BULK_COMMANDS = [
+    { type:'REFRESH_CONTENT', label:'Refresh content' },
+    { type:'SHOW_MESSAGE', label:'Show message', field:{name:'text', placeholder:'Message to display'} },
+    { type:'SET_VOLUME', label:'Set volume', field:{name:'level', placeholder:'0–100', type:'number'} },
+    { type:'SET_BRIGHTNESS', label:'Set brightness', field:{name:'level', placeholder:'0–100', type:'number'} },
+    { type:'LOCK_DEVICE', label:'Lock' },
+    { type:'RELEASE_LOCK', label:'Release lock' },
+    { type:'REBOOT', label:'Reboot (Device Owner only)' },
+    { type:'CLEAR_AD', label:'Clear pushed ad' },
+  ];
+  function renderBulkCommandArea(){
+    const area = document.getElementById('bulkCommandArea');
+    if (!area) return;
+    area.innerHTML = `
+      <div class="inline-form">
+        <select id="bulkType">${BULK_COMMANDS.map(c=>`<option value="${c.type}">${c.label}</option>`).join('')}</select>
+        <span id="bulkFieldWrap" style="flex:1"></span>
+        <button class="btn btn-primary btn-sm" id="bulkSend">${icon('send',13)} Send</button>
+      </div>`;
+    const typeSel = document.getElementById('bulkType');
+    const fieldWrap = document.getElementById('bulkFieldWrap');
+    function paintField(){
+      const cmd = BULK_COMMANDS.find(c=>c.type===typeSel.value);
+      fieldWrap.innerHTML = cmd.field ? `<input id="bulkField" type="${cmd.field.type||'text'}" placeholder="${cmd.field.placeholder}" style="width:100%; background:var(--surface-3); border:1px solid var(--border-strong); color:var(--text); border-radius:6px; padding:8px 10px; font-size:13px;">` : '';
+    }
+    typeSel.addEventListener('change', paintField);
+    paintField();
+    document.getElementById('bulkSend').addEventListener('click', async ()=>{
+      const cmd = BULK_COMMANDS.find(c=>c.type===typeSel.value);
+      let payload = null;
+      if (cmd.field){
+        const val = document.getElementById('bulkField').value.trim();
+        if (!val){ toast('Fill in the value first', 'err'); return; }
+        payload = { [cmd.field.name]: cmd.field.type==='number' ? Number(val) : val };
       }
-      const data = await res.json();
-      if (!data.ok) { status.textContent = data.error || 'failed'; return; }
-      status.textContent = 'added ✅';
-      document.getElementById('ad-name').value = '';
-      document.getElementById('ad-url').value = '';
-      document.getElementById('ad-text').value = '';
-      fileInput.value = '';
-      await loadAds();
-      setTimeout(() => { status.textContent = ''; }, 2000);
-    } catch (err) {
-      status.textContent = 'network error';
-    }
+      try{
+        const res = await api('/api/devices/bulk-commands', { method:'POST', json:{ device_ids:[...state.selectedDeviceIds], command_type:cmd.type, payload } });
+        toast(`Sent "${cmd.label}" to ${res.sent_to} device(s)`, 'ok');
+        state.selectedDeviceIds.clear();
+        renderView();
+      }catch(err){ toast(err.message, 'err'); }
+    });
   }
 
-  async function deleteAd(id) {
-    if (!confirm('Delete this ad? It will be removed from any layouts using it.')) return;
-    await fetch(`/api/ads/${id}`, { method: 'DELETE' });
-    await loadAds();
-    await loadLayouts();
+  function wireDevicesEvents(){
+    const fs = document.getElementById('filterStatus'), fg = document.getElementById('filterGroup');
+    if (fs) fs.addEventListener('change', ()=>{ deviceFilterStatus = fs.value; renderView(); });
+    if (fg) fg.addEventListener('change', ()=>{ deviceFilterGroup = fg.value; renderView(); });
+    document.querySelectorAll('[data-sort]').forEach(th=>{
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.sort;
+        if (state.deviceSort.key === key) state.deviceSort.dir = state.deviceSort.dir==='asc'?'desc':'asc';
+        else state.deviceSort = { key, dir:'asc' };
+        renderView();
+      });
+    });
+    document.querySelectorAll('.device-check').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        if (cb.checked) state.selectedDeviceIds.add(cb.dataset.id); else state.selectedDeviceIds.delete(cb.dataset.id);
+        renderView();
+      });
+    });
+    const selAll = document.getElementById('selectAllDevices');
+    if (selAll) selAll.addEventListener('change', ()=>{
+      if (selAll.checked) filteredDevices().forEach(d=>state.selectedDeviceIds.add(d.device_id));
+      else filteredDevices().forEach(d=>state.selectedDeviceIds.delete(d.device_id));
+      renderView();
+    });
+    const clearSel = document.getElementById('clearSelection');
+    if (clearSel) clearSel.addEventListener('click', ()=>{ state.selectedDeviceIds.clear(); renderView(); });
+    renderBulkCommandArea();
   }
 
-  function renderZonePickers() {
-    const template = selectedTemplate;
-    const zones = TEMPLATE_ZONES[template] || [];
-    const sortedAds = [...ads].sort((a, b) => a.id - b.id);
-    const el = document.getElementById('zone-pickers');
-    if (sortedAds.length === 0) {
-      el.innerHTML = '<div class="empty-sub">Add at least one ad above before building a layout.</div>';
-      updateCreateButtonState();
-      return;
-    }
-    el.innerHTML = `
-      <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
-        <div id="layout-preview"></div>
-        <div style="flex:1; min-width:260px;">
-          ${zones.map(([key, label]) => `
-            <div style="margin-bottom:10px;" data-zone-group="${key}">
-              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-                ${label} zone — pick one for a steady grid slot, or more than one to rotate within this zone
-                <span class="zone-status" data-zone-status="${key}" style="font-size:11px; font-weight:600;"></span>
+  function wireSectionEvents(){
+    const wirers = { devices:wireDevicesEvents, groups:wireGroupsEvents, content:wireContentEvents, layouts:wireLayoutsEvents, apps:wireAppsEvents, alerts:wireAlertsEvents };
+    if (wirers[state.section]) wirers[state.section]();
+  }
+
+  /* ============================= GROUPS ============================= */
+  function renderGroups(){
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Groups</h1><div class="lede">Organize devices so you can push content and commands to a whole set at once.</div></div>
+        <div class="view-actions"><button class="btn btn-primary" id="newGroupBtn">${icon('plus')} New group</button></div>
+      </div>
+      <div class="media-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));">
+        ${state.groups.map(g=>`
+          <div class="card">
+            <div class="card-body">
+              <div class="flex" style="justify-content:space-between; margin-bottom:10px;">
+                <span class="avatar-square">${icon('groups',16)}</span>
+                <button class="btn btn-icon btn-ghost" data-del-group="${g.id}" title="Delete group">${icon('trash',14)}</button>
               </div>
-              <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                ${sortedAds.map(ad => `
-                  <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
-                    <input type="checkbox" class="zone-check" data-zone="${key}" data-name="${escapeHtml(ad.name)}" value="${ad.id}" onchange="updateCreateButtonState()">
-                    ${escapeHtml(ad.name)} <span style="color:var(--text-muted);">(${ad.media_type})</span>
-                  </label>
-                `).join('')}
+              <div class="cell-primary" style="font-size:14.5px; margin-bottom:2px;">${esc(g.name)}</div>
+              <div class="text-faint" style="font-size:11.5px; margin-bottom:14px;">${g.device_count} device${g.device_count===1?'':'s'} · created ${fmtDate(g.created_at)}</div>
+              <div class="flex gap8">
+                <button class="btn btn-sm grow" data-view-group="${g.id}">View devices</button>
+                <button class="btn btn-sm btn-primary" data-command-group="${g.id}">Send command</button>
               </div>
             </div>
-          `).join('')}
+          </div>`).join('') || `<div class="card"><div class="empty-state">${icon('groups',30)}<div class="t">No groups yet</div><div class="d">Create a group to organize devices by location, room, or role.</div></div></div>`}
+      </div>
+    `;
+  }
+  function wireGroupsEvents(){
+    document.getElementById('newGroupBtn')?.addEventListener('click', ()=>{
+      openModal(`
+        <div class="modal-head"><h3>New group</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+        <div class="modal-body">
+          <div class="field"><label>Group name</label><input id="groupName" placeholder="e.g. Lobby Screens" autofocus></div>
+        </div>
+        <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="createGroupBtn">${icon('plus',14)} Create group</button></div>
+      `);
+      wireModalClose();
+      document.getElementById('createGroupBtn').addEventListener('click', async ()=>{
+        const name = document.getElementById('groupName').value.trim();
+        if (!name){ toast('Group name is required', 'err'); return; }
+        try{ await api('/api/groups', { method:'POST', json:{ name } }); toast('Group created', 'ok'); closeModal(); await loadAll(false); }
+        catch(err){ toast(err.message, 'err'); }
+      });
+    });
+    document.querySelectorAll('[data-del-group]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const g = state.groups.find(x=>String(x.id)===btn.dataset.delGroup);
+      const ok = await confirmAction(`Delete "${g.name}"? Its ${g.device_count} device(s) will move to Uncategorized.`);
+      if (!ok) return;
+      try{ await api('/api/groups/'+btn.dataset.delGroup, { method:'DELETE' }); toast('Group deleted', 'ok'); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
+    }));
+    document.querySelectorAll('[data-view-group]').forEach(btn=>btn.addEventListener('click', ()=>{
+      deviceFilterGroup = btn.dataset.viewGroup; navigate('devices');
+    }));
+    document.querySelectorAll('[data-command-group]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const g = state.groups.find(x=>String(x.id)===btn.dataset.commandGroup);
+      const ids = state.devices.filter(d=>String(d.group_id)===String(g.id)).map(d=>d.device_id);
+      if (ids.length === 0){ toast('This group has no devices yet', 'err'); return; }
+      state.selectedDeviceIds = new Set(ids);
+      deviceFilterGroup = String(g.id);
+      navigate('devices');
+    }));
+  }
+  function wireModalClose(){
+    document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click', closeModal));
+  }
+
+  /* ============================= CONTENT LIBRARY (ADS) ============================= */
+  const MEDIA_META = {
+    image:{icon:'image', badge:'b-blue'}, video:{icon:'video', badge:'b-violet'},
+    web:{icon:'web', badge:'b-teal'}, text:{icon:'text', badge:'b-amber'},
+  };
+  function renderContent(){
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Content library</h1><div class="lede">Images, videos, web pages and text snippets you can arrange into layouts or push instantly to any screen.</div></div>
+        <div class="view-actions"><button class="btn btn-primary" id="newAdBtn">${icon('plus')} Add content</button></div>
+      </div>
+      <div class="media-grid">
+        ${state.ads.map(ad=>{
+          const m = MEDIA_META[ad.media_type];
+          let thumb = `<span style="color:var(--text-faint)">${icon(m.icon,26)}</span>`;
+          if (ad.media_type === 'image') thumb = `<img src="${esc(ad.url)}" loading="lazy" alt="">`;
+          else if (ad.media_type === 'video') thumb = `<video src="${esc(ad.url)}" muted preload="metadata"></video>`;
+          return `<div class="media-card">
+            <div class="media-thumb">${thumb}<span class="type-chip badge ${m.badge}">${icon(m.icon,11)} ${ad.media_type}</span></div>
+            <div class="media-body">
+              <div class="media-title" title="${esc(ad.name)}">${esc(ad.name)}</div>
+              <div class="media-meta"><span>${ad.duration_seconds}s${ad.size?' · '+fmtBytes(ad.size):''}</span><span>${fmtDate(ad.created_at).split(',')[0]}</span></div>
+              <div class="media-actions">
+                ${ad.source==='url' && ad.media_type!=='text' ? `<a class="btn btn-sm grow" href="${esc(ad.url)}" target="_blank" rel="noopener">${icon('link',12)} Open</a>` : `<button class="btn btn-sm grow" data-push-ad="${ad.id}">${icon('ad',12)} Push live</button>`}
+                <button class="btn btn-sm btn-icon btn-danger" data-del-ad="${ad.id}" title="Delete">${icon('trash',13)}</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('') || `<div class="card"><div class="empty-state">${icon('content',30)}<div class="t">Your library is empty</div><div class="d">Add images, videos, a web page, or a text card to start building layouts.</div></div></div>`}
+      </div>
+    `;
+  }
+  function wireContentEvents(){
+    document.getElementById('newAdBtn')?.addEventListener('click', openAddContentModal);
+    document.querySelectorAll('[data-del-ad]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const ok = await confirmAction('Delete this content item? It will be removed from any layouts using it.');
+      if (!ok) return;
+      try{ await api('/api/ads/'+btn.dataset.delAd, { method:'DELETE' }); toast('Content deleted', 'ok'); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
+    }));
+    document.querySelectorAll('[data-push-ad]').forEach(btn=>btn.addEventListener('click', ()=>openPushAdModal(btn.dataset.pushAd)));
+  }
+  function openAddContentModal(){
+    openModal(`
+      <div class="modal-head"><h3>Add content</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="radio-tabs" style="margin-bottom:16px;" id="adTypeTabs">
+          <button class="active" data-type="image">Image</button>
+          <button data-type="video">Video</button>
+          <button data-type="web">Web page</button>
+          <button data-type="text">Text</button>
+        </div>
+        <div class="field"><label>Name</label><input id="adName" placeholder="e.g. Summer Promo"></div>
+        <div id="adTypeBody"></div>
+        <div class="field" id="adDurationWrap"><label>Duration (seconds)</label><input id="adDuration" type="number" min="1" placeholder="10"></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="saveAdBtn">${icon('upload',14)} Add to library</button></div>
+    `, {wide:false});
+    wireModalClose();
+    let currentType = 'image';
+    const body = document.getElementById('adTypeBody');
+    function paintBody(){
+      if (currentType === 'image' || currentType === 'video'){
+        body.innerHTML = `
+          <div class="radio-tabs" style="margin-bottom:12px;">
+            <button class="active" data-src="upload">Upload file</button>
+            <button data-src="url">From URL</button>
+          </div>
+          <div id="adSrcBody">
+            <div class="dropzone" id="adDropzone">${icon('upload',22)}<div style="margin-top:8px;">Click to choose ${currentType==='image'?'an image':'a video'} or drag it here</div><input type="file" id="adFile" accept="${currentType==='image'?'image/*':'video/*'}" style="display:none">
+            <div id="adFileName" class="text-dim" style="margin-top:8px; font-size:12px;"></div></div>
+          </div>`;
+        wireSrcTabs();
+      } else if (currentType === 'web'){
+        body.innerHTML = `<div class="field"><label>Web page URL</label><input id="adUrl" placeholder="https://example.com/menu-board"></div>`;
+      } else {
+        body.innerHTML = `<div class="field"><label>Text content</label><textarea id="adText" rows="4" placeholder="Announcement text to display full-screen"></textarea></div>`;
+      }
+      document.getElementById('adDurationWrap').style.display = currentType==='web' ? 'none' : 'block';
+    }
+    function wireSrcTabs(){
+      let srcMode = 'upload';
+      const tabs = body.querySelectorAll('[data-src]');
+      const srcBody = document.getElementById('adSrcBody');
+      tabs.forEach(t=>t.addEventListener('click', ()=>{
+        tabs.forEach(x=>x.classList.remove('active')); t.classList.add('active'); srcMode = t.dataset.src;
+        if (srcMode === 'upload'){
+          srcBody.innerHTML = `<div class="dropzone" id="adDropzone">${icon('upload',22)}<div style="margin-top:8px;">Click to choose ${currentType==='image'?'an image':'a video'} or drag it here</div><input type="file" id="adFile" accept="${currentType==='image'?'image/*':'video/*'}" style="display:none"><div id="adFileName" class="text-dim" style="margin-top:8px; font-size:12px;"></div></div>`;
+          wireDropzone();
+        } else {
+          srcBody.innerHTML = `<div class="field"><label>Media URL</label><input id="adUrl" placeholder="https://example.com/video.mp4"></div>`;
+        }
+      }));
+      wireDropzone();
+    }
+    function wireDropzone(){
+      const dz = document.getElementById('adDropzone'); if (!dz) return;
+      const input = document.getElementById('adFile');
+      dz.addEventListener('click', ()=>input.click());
+      input.addEventListener('change', ()=>{ document.getElementById('adFileName').textContent = input.files[0] ? input.files[0].name + ' · ' + fmtBytes(input.files[0].size) : ''; });
+      ['dragover','dragleave','drop'].forEach(evt=>dz.addEventListener(evt, e=>{ e.preventDefault(); dz.classList.toggle('drag', evt==='dragover'); }));
+      dz.addEventListener('drop', e=>{ input.files = e.dataTransfer.files; document.getElementById('adFileName').textContent = input.files[0] ? input.files[0].name : ''; });
+    }
+    document.getElementById('adTypeTabs').querySelectorAll('[data-type]').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('#adTypeTabs [data-type]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      currentType = t.dataset.type; paintBody();
+    }));
+    paintBody();
+
+    document.getElementById('saveAdBtn').addEventListener('click', async ()=>{
+      const name = document.getElementById('adName').value.trim();
+      const duration = document.getElementById('adDuration')?.value;
+      if (!name){ toast('Name is required', 'err'); return; }
+      try{
+        let res;
+        if (currentType === 'web' || currentType === 'text'){
+          const val = currentType==='web' ? document.getElementById('adUrl').value.trim() : document.getElementById('adText').value.trim();
+          if (!val){ toast(currentType==='web'?'URL is required':'Text is required', 'err'); return; }
+          res = await api('/api/ads', { method:'POST', json:{ name, media_type:currentType, external_url:val, duration_seconds: duration?Number(duration):undefined } });
+        } else {
+          const urlField = document.getElementById('adUrl');
+          if (urlField){
+            const val = urlField.value.trim();
+            if (!val){ toast('URL is required', 'err'); return; }
+            res = await api('/api/ads', { method:'POST', json:{ name, media_type:currentType, external_url:val, duration_seconds: duration?Number(duration):undefined } });
+          } else {
+            const file = document.getElementById('adFile').files[0];
+            if (!file){ toast('Choose a file first', 'err'); return; }
+            const form = new FormData();
+            form.append('file', file); form.append('name', name); form.append('media_type', currentType);
+            if (duration) form.append('duration_seconds', duration);
+            res = await api('/api/ads', { method:'POST', body:form });
+          }
+        }
+        toast('Content added', 'ok'); closeModal(); await loadAll(false);
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+  function openPushAdModal(adId){
+    const ad = state.ads.find(a=>String(a.id)===String(adId));
+    openModal(`
+      <div class="modal-head"><h3>Push "${esc(ad.name)}" live</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <p class="text-dim" style="font-size:12.5px; line-height:1.6; margin-top:0;">Shows this as a full-screen overlay instantly, on top of whatever's currently playing. Use "Clear pushed ad" from a device's Remote Control tab to remove it.</p>
+        <div class="field"><label>Target</label>
+          <select id="pushTarget">
+            <option value="">Select a device…</option>
+            ${state.devices.map(d=>`<option value="${esc(d.device_id)}">${esc(deviceLabel(d))}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="pushAdSend">${icon('send',14)} Push now</button></div>
+    `);
+    wireModalClose();
+    document.getElementById('pushAdSend').addEventListener('click', async ()=>{
+      const target = document.getElementById('pushTarget').value;
+      if (!target){ toast('Choose a device', 'err'); return; }
+      try{
+        await api(`/api/devices/${encodeURIComponent(target)}/commands`, { method:'POST', json:{ command_type:'PUSH_AD', payload:{ media_type:ad.media_type, url:ad.url } } });
+        toast('Ad pushed', 'ok'); closeModal();
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+
+  /* ============================= LAYOUTS ============================= */
+  const TEMPLATE_LABELS = { split2:'Split (2 zones)', split3:'Split (3 zones)', grid4:'Grid (4 zones)', pip:'Picture-in-picture', ticker:'Main + ticker (bottom)', ticker_top:'Main + ticker (top)' };
+  function zoneDiagram(template){
+    const layouts = {
+      split2:'grid-template-columns:1fr 1fr; grid-template-areas:"a b";',
+      split3:'grid-template-columns:1.4fr 1fr; grid-template-rows:1fr 1fr; grid-template-areas:"a b" "a c";',
+      grid4:'grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; grid-template-areas:"a b" "c d";',
+      pip:'grid-template-columns:1fr; grid-template-rows:1fr;',
+      ticker:'grid-template-columns:1fr; grid-template-rows:1fr auto; grid-template-areas:"a" "b";',
+      ticker_top:'grid-template-columns:1fr; grid-template-rows:auto 1fr; grid-template-areas:"b" "a";',
+    };
+    if (template==='pip') return `<div class="zone-diagram" style="position:relative;"><i class="filled" style="width:100%;height:100%;"></i><i class="filled" style="position:absolute; right:2px; bottom:2px; width:35%; height:45%; background:var(--surface-2); border:1px solid var(--teal);"></i></div>`;
+    const areas = ['a','b','c','d'];
+    const count = { split2:2, split3:3, grid4:4, ticker:2, ticker_top:2 }[template] || 2;
+    return `<div class="zone-diagram" style="${layouts[template]}">${areas.slice(0,count).map((a,i)=>`<i class="filled" style="grid-area:${a}; ${template.startsWith('ticker') && i===1 ? 'opacity:.5;':''}"></i>`).join('')}</div>`;
+  }
+  function renderLayouts(){
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Layouts</h1><div class="lede">Multi-zone screen templates. Each zone plays its own ordered playlist of content.</div></div>
+        <div class="view-actions"><button class="btn btn-primary" id="newLayoutBtn">${icon('plus')} New layout</button></div>
+      </div>
+      <div class="media-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));">
+        ${state.layouts.map(l=>`
+          <div class="card">
+            <div class="card-body">
+              <div class="flex gap12" style="margin-bottom:12px;">
+                ${zoneDiagram(l.template)}
+                <div>
+                  <div class="cell-primary" style="font-size:14px;">${esc(l.name)}</div>
+                  <span class="badge b-violet" style="margin-top:4px;">${esc(TEMPLATE_LABELS[l.template]||l.template)}</span>
+                </div>
+              </div>
+              <div class="text-faint" style="font-size:11.5px; margin-bottom:12px;">${l.item_count} item${l.item_count===1?'':'s'} across zones · created ${fmtDate(l.created_at).split(',')[0]}</div>
+              <div class="flex gap8">
+                <button class="btn btn-sm grow" data-edit-layout="${l.id}">Edit</button>
+                <button class="btn btn-sm btn-primary grow" data-assign-layout="${l.id}">Assign</button>
+                <button class="btn btn-sm btn-icon btn-danger" data-del-layout="${l.id}" title="Delete">${icon('trash',13)}</button>
+              </div>
+            </div>
+          </div>`).join('') || `<div class="card"><div class="empty-state">${icon('layouts',30)}<div class="t">No layouts yet</div><div class="d">Build a split-screen, grid, or ticker layout from your content library.</div></div></div>`}
+      </div>
+    `;
+  }
+  function wireLayoutsEvents(){
+    document.getElementById('newLayoutBtn')?.addEventListener('click', ()=>openLayoutModal(null));
+    document.querySelectorAll('[data-edit-layout]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      try{ const res = await api('/api/layouts/'+btn.dataset.editLayout); openLayoutModal(res.layout); }
+      catch(err){ toast(err.message, 'err'); }
+    }));
+    document.querySelectorAll('[data-del-layout]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const ok = await confirmAction('Delete this layout? Devices assigned to it will show nothing until reassigned.');
+      if (!ok) return;
+      try{ await api('/api/layouts/'+btn.dataset.delLayout, { method:'DELETE' }); toast('Layout deleted', 'ok'); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
+    }));
+    document.querySelectorAll('[data-assign-layout]').forEach(btn=>btn.addEventListener('click', ()=>openAssignLayoutModal(btn.dataset.assignLayout)));
+  }
+
+  function openLayoutModal(existing){
+    const templates = Object.keys(state.layoutTemplates || TEMPLATE_ZONES_FALLBACK);
+    const isEdit = !!existing;
+    let template = existing ? existing.template : templates[0];
+    let zoneItems = {}; // zoneKey -> [{id,name,media_type}]
+    if (existing) Object.keys(existing.zones||{}).forEach(k=>{ zoneItems[k] = (existing.zones[k]||[]).slice(); });
+
+    openModal(`
+      <div class="modal-head"><h3>${isEdit?'Edit layout':'New layout'}</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="form-row cols-2" style="margin-bottom:14px;">
+          <div class="field" style="margin-bottom:0;"><label>Layout name</label><input id="layoutName" value="${esc(existing?.name||'')}" placeholder="e.g. Reception Split"></div>
+          <div class="field" style="margin-bottom:0;"><label>Template</label>
+            <select id="layoutTemplate" ${isEdit?'disabled':''}>${templates.map(t=>`<option value="${t}" ${t===template?'selected':''}>${esc(TEMPLATE_LABELS[t]||t)}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div id="zoneBuilder"></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="saveLayoutBtn">${icon('check',14)} ${isEdit?'Save changes':'Create layout'}</button></div>
+    `, {wide:true});
+    wireModalClose();
+
+    function paintZones(){
+      const zones = (state.layoutTemplates && state.layoutTemplates[template]) || TEMPLATE_ZONES_FALLBACK[template] || [];
+      document.getElementById('zoneBuilder').innerHTML = zones.map(z=>`
+        <fieldset>
+          <legend>${esc(z.replace(/_/g,' '))}</legend>
+          <div class="inline-form" style="margin-bottom:8px;">
+            <select data-zone-add="${z}">
+              <option value="">Add content to this zone…</option>
+              ${state.ads.map(a=>`<option value="${a.id}">${esc(a.name)} (${a.media_type})</option>`).join('')}
+            </select>
+            <button class="btn btn-sm" data-zone-add-btn="${z}">${icon('plus',13)}</button>
+          </div>
+          <div class="timeline" id="zoneList-${z}" style="gap:0;"></div>
+        </fieldset>
+      `).join('');
+      zones.forEach(z=>{ if (!zoneItems[z]) zoneItems[z] = []; paintZoneList(z); });
+      document.querySelectorAll('[data-zone-add-btn]').forEach(btn=>btn.addEventListener('click', ()=>{
+        const z = btn.dataset.zoneAddBtn;
+        const sel = document.querySelector(`[data-zone-add="${z}"]`);
+        const adId = sel.value; if (!adId) return;
+        const ad = state.ads.find(a=>String(a.id)===adId);
+        zoneItems[z].push({ id: ad.id, name: ad.name, media_type: ad.media_type });
+        sel.value = ''; paintZoneList(z);
+      }));
+    }
+    function paintZoneList(z){
+      const wrap = document.getElementById('zoneList-'+z);
+      const items = zoneItems[z] || [];
+      wrap.innerHTML = items.length ? items.map((it,i)=>{
+        const m = MEDIA_META[it.media_type] || MEDIA_META.text;
+        return `<div class="timeline-item" style="padding:7px 0;">
+          <span style="color:var(--text-faint)">${icon(m.icon,14)}</span>
+          <div class="timeline-body"><div class="timeline-title" style="font-size:12px;">${i+1}. ${esc(it.name)}</div></div>
+          <div class="flex gap8">
+            <button class="btn btn-icon btn-ghost" style="width:24px;height:24px;" data-zone-up="${z}:${i}" ${i===0?'disabled':''}>${icon('chevDown',12)}</button>
+            <button class="btn btn-icon btn-ghost" style="width:24px;height:24px;" data-zone-rm="${z}:${i}">${icon('x',12)}</button>
+          </div>
+        </div>`;
+      }).join('') : `<div class="text-faint" style="font-size:11.5px; padding:6px 0;">No content yet — add at least one item.</div>`;
+      wrap.querySelectorAll('[data-zone-rm]').forEach(b=>b.addEventListener('click', ()=>{
+        const [zz,i] = b.dataset.zoneRm.split(':'); zoneItems[zz].splice(Number(i),1); paintZoneList(zz);
+      }));
+      wrap.querySelectorAll('[data-zone-up]').forEach(b=>b.addEventListener('click', ()=>{
+        const [zz,i] = b.dataset.zoneUp.split(':'); const idx = Number(i);
+        [zoneItems[zz][idx-1], zoneItems[zz][idx]] = [zoneItems[zz][idx], zoneItems[zz][idx-1]]; paintZoneList(zz);
+      }));
+    }
+    document.getElementById('layoutTemplate').addEventListener('change', (e)=>{ template = e.target.value; zoneItems = {}; paintZones(); });
+    paintZones();
+
+    document.getElementById('saveLayoutBtn').addEventListener('click', async ()=>{
+      const name = document.getElementById('layoutName').value.trim();
+      if (!name){ toast('Layout name is required', 'err'); return; }
+      const zones = {};
+      Object.keys(zoneItems).forEach(z => zones[z] = zoneItems[z].map(it=>it.id));
+      const empty = Object.entries(zones).filter(([,v])=>v.length===0);
+      if (empty.length){ toast(`Add content to: ${empty.map(([k])=>k).join(', ')}`, 'err'); return; }
+      try{
+        if (isEdit) await api('/api/layouts/'+existing.id, { method:'PUT', json:{ name, zones } });
+        else await api('/api/layouts', { method:'POST', json:{ name, template, zones } });
+        toast(isEdit?'Layout updated':'Layout created', 'ok'); closeModal(); await loadAll(false);
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+
+  function openAssignLayoutModal(layoutId){
+    openModal(`
+      <div class="modal-head"><h3>Assign layout</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="radio-tabs" style="margin-bottom:14px;" id="assignTargetTabs">
+          <button class="active" data-target="device">Single device</button>
+          <button data-target="group">Whole group</button>
+        </div>
+        <div class="field" id="assignTargetField">
+          <label>Device</label>
+          <select id="assignTarget">${state.devices.map(d=>`<option value="${esc(d.device_id)}">${esc(deviceLabel(d))}</option>`).join('')}</select>
+        </div>
+        <p class="text-faint" style="font-size:11.5px; line-height:1.5;">This replaces any layout currently assigned to the target, and pushes an instant refresh — no waiting for the next heartbeat.</p>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="assignSendBtn">${icon('check',14)} Assign</button></div>
+    `);
+    wireModalClose();
+    let targetType = 'device';
+    document.querySelectorAll('#assignTargetTabs [data-target]').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('#assignTargetTabs [data-target]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      targetType = t.dataset.target;
+      const field = document.getElementById('assignTargetField');
+      field.innerHTML = targetType==='device'
+        ? `<label>Device</label><select id="assignTarget">${state.devices.map(d=>`<option value="${esc(d.device_id)}">${esc(deviceLabel(d))}</option>`).join('')}</select>`
+        : `<label>Group</label><select id="assignTarget">${state.groups.map(g=>`<option value="${g.id}">${esc(g.name)} (${g.device_count})</option>`).join('')}</select>`;
+    }));
+    document.getElementById('assignSendBtn').addEventListener('click', async ()=>{
+      const val = document.getElementById('assignTarget').value;
+      if (!val){ toast('Choose a target', 'err'); return; }
+      const body = targetType==='device' ? { device_id: val } : { group_id: Number(val) };
+      try{
+        const res = await api(`/api/layouts/${layoutId}/assign`, { method:'POST', json:body });
+        toast(`Layout pushed to ${res.notified} device(s)`, 'ok'); closeModal();
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+
+  /* ============================= APPLICATIONS (APKs) ============================= */
+  function renderApps(){
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Applications</h1><div class="lede">APKs you've uploaded — push any of them to a device or group as a remote install.</div></div>
+        <div class="view-actions"><button class="btn btn-primary" id="newApkBtn">${icon('upload')} Upload APK</button></div>
+      </div>
+      <div class="card">
+        <div class="card-body pad0 table-wrap">
+          <table>
+            <thead><tr><th>File</th><th class="num">Size</th><th>Uploaded</th><th></th></tr></thead>
+            <tbody>${state.apks.map(a=>`
+              <tr>
+                <td><div class="flex gap10"><span class="avatar-square">${icon('install',15)}</span><div><div class="cell-primary">${esc(a.filename)}</div><div class="cell-sub">APK package</div></div></div></td>
+                <td class="num mono">${fmtBytes(a.size)}</td>
+                <td class="text-dim">${fmtDate(a.uploaded_at)}</td>
+                <td>
+                  <div class="flex gap8" style="justify-content:flex-end;">
+                    <button class="btn btn-sm" data-copy-url="${esc(a.url)}">${icon('copy',12)} Copy URL</button>
+                    <button class="btn btn-sm btn-primary" data-install-apk="${a.id}">${icon('send',12)} Install to…</button>
+                  </div>
+                </td>
+              </tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">${icon('apps',30)}<div class="t">No APKs uploaded</div><div class="d">Upload an APK to push app installs to your fleet remotely.</div></div></td></tr>`}
+            </tbody>
+          </table>
         </div>
       </div>
     `;
-    updateCreateButtonState();
   }
-
-  // Every zone the chosen template defines must have at least one ad
-  // checked before the layout can be created — mirrors the same rule the
-  // backend enforces (routes/layouts.js), so an admin sees it up front
-  // instead of getting a 400 after clicking Create.
-  function updateCreateButtonState() {
-    const zones = TEMPLATE_ZONES[selectedTemplate] || [];
-    const btn = document.getElementById('create-layout-btn');
-    const status = document.getElementById('layout-submit-status');
-    let allFilled = zones.length > 0;
-    const missingLabels = [];
-
-    zones.forEach(([key, label]) => {
-      const checkedCount = document.querySelectorAll(`.zone-check[data-zone="${key}"]:checked`).length;
-      const badge = document.querySelector(`[data-zone-status="${key}"]`);
-      if (badge) {
-        badge.textContent = checkedCount > 0 ? '✓ ready' : 'required — empty';
-        badge.style.color = checkedCount > 0 ? 'var(--green, #3ba55d)' : 'var(--red, #e05353)';
-      }
-      if (checkedCount === 0) { allFilled = false; missingLabels.push(label); }
+  function wireAppsEvents(){
+    document.getElementById('newApkBtn')?.addEventListener('click', openUploadApkModal);
+    document.querySelectorAll('[data-copy-url]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(btn.dataset.copyUrl); toast('Download URL copied', 'ok'); }
+      catch{ toast(btn.dataset.copyUrl, 'info'); }
+    }));
+    document.querySelectorAll('[data-install-apk]').forEach(btn=>btn.addEventListener('click', ()=>openInstallApkModal(btn.dataset.installApk)));
+  }
+  function openUploadApkModal(){
+    openModal(`
+      <div class="modal-head"><h3>Upload APK</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="dropzone" id="apkDropzone">${icon('upload',22)}<div style="margin-top:8px;">Click to choose an .apk file or drag it here</div><input type="file" id="apkFile" accept=".apk" style="display:none">
+        <div id="apkFileName" class="text-dim" style="margin-top:8px; font-size:12px;"></div></div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="apkSaveBtn">${icon('upload',14)} Upload</button></div>
+    `);
+    wireModalClose();
+    const dz = document.getElementById('apkDropzone'), input = document.getElementById('apkFile');
+    dz.addEventListener('click', ()=>input.click());
+    input.addEventListener('change', ()=>{ document.getElementById('apkFileName').textContent = input.files[0] ? input.files[0].name+' · '+fmtBytes(input.files[0].size) : ''; });
+    ['dragover','dragleave','drop'].forEach(evt=>dz.addEventListener(evt, e=>{ e.preventDefault(); dz.classList.toggle('drag', evt==='dragover'); }));
+    dz.addEventListener('drop', e=>{ input.files = e.dataTransfer.files; document.getElementById('apkFileName').textContent = input.files[0]?.name || ''; });
+    document.getElementById('apkSaveBtn').addEventListener('click', async ()=>{
+      const file = input.files[0];
+      if (!file){ toast('Choose an .apk file first', 'err'); return; }
+      const form = new FormData(); form.append('apk', file);
+      try{ await api('/api/apks', { method:'POST', body:form }); toast('APK uploaded', 'ok'); closeModal(); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
     });
-
-    const previewEl = document.getElementById('layout-preview');
-    if (previewEl) previewEl.innerHTML = layoutPreviewHtml(selectedTemplate);
-
-    if (!btn) return;
-    btn.disabled = !allFilled;
-    btn.style.opacity = allFilled ? '1' : '0.5';
-    btn.style.cursor = allFilled ? 'pointer' : 'not-allowed';
-    if (status && !status.textContent.includes('created') && !status.textContent.includes('saving')) {
-      status.textContent = allFilled ? '' : (missingLabels.length ? `still needs: ${missingLabels.join(', ')}` : '');
-    }
   }
-
-  async function createLayout() {
-    const name = document.getElementById('layout-name').value.trim();
-    const template = selectedTemplate;
-    const status = document.getElementById('layout-submit-status');
-    if (!name) { status.textContent = 'name is required'; return; }
-
-    const zones = {};
-    document.querySelectorAll('.zone-check:checked').forEach(cb => {
-      const zone = cb.dataset.zone;
-      (zones[zone] = zones[zone] || []).push(Number(cb.value));
-    });
-
-    const requiredZones = (TEMPLATE_ZONES[template] || []).map(([key]) => key);
-    const missing = requiredZones.filter(key => !zones[key] || zones[key].length === 0);
-    if (missing.length > 0) {
-      status.textContent = `every zone needs at least one image, video, or text item — missing: ${missing.join(', ')}`;
-      return;
-    }
-
-    status.textContent = 'saving…';
-    try {
-      const res = await fetch('/api/layouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, template, zones }),
-      });
-      const data = await res.json();
-      if (!data.ok) { status.textContent = data.error || 'failed'; return; }
-      status.textContent = 'created ✅';
-      document.getElementById('layout-name').value = '';
-      document.querySelectorAll('.zone-check:checked').forEach(cb => cb.checked = false);
-      updateCreateButtonState();
-      await loadLayouts();
-      setTimeout(() => { status.textContent = ''; }, 2000);
-    } catch (err) {
-      status.textContent = 'network error';
-    }
-  }
-
-  async function loadLayouts() {
-    try {
-      const res = await fetch('/api/layouts');
-      const data = await res.json();
-      layouts = data.layouts || [];
-      renderLayouts();
-    } catch (err) { /* keep last known list on a blip */ }
-  }
-
-  function renderLayouts() {
-    const el = document.getElementById('layouts-list');
-    if (layouts.length === 0) {
-      el.innerHTML = '<div class="empty-sub">No layouts yet — create one above.</div>';
-      return;
-    }
-
-    // Preserve whatever an admin has mid-picked in an assign dropdown —
-    // this function gets re-run every time devices/groups refresh (so a
-    // newly-connected device shows up without a manual reload), and
-    // rebuilding the whole list would otherwise silently reset any
-    // in-progress selection back to the empty placeholder.
-    const preserved = {};
-    layouts.forEach(l => {
-      const deviceSel = document.getElementById(`assign-device-${l.id}`);
-      const groupSel = document.getElementById(`assign-group-${l.id}`);
-      if (deviceSel && deviceSel.value) preserved[`assign-device-${l.id}`] = deviceSel.value;
-      if (groupSel && groupSel.value) preserved[`assign-group-${l.id}`] = groupSel.value;
-    });
-
-    el.innerHTML = layouts.map(l => `
-      <div style="padding:10px 12px; background:var(--panel-hover); border-radius:6px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-          <div><strong>${escapeHtml(l.name)}</strong> <span style="color:var(--text-muted);">${l.template} · ${l.item_count} item(s)</span></div>
-          <button class="btn secondary" onclick="deleteLayout(${l.id})">Delete</button>
+  function openInstallApkModal(apkId){
+    const apk = state.apks.find(a=>String(a.id)===String(apkId));
+    openModal(`
+      <div class="modal-head"><h3>Install "${esc(apk.filename)}"</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="radio-tabs" style="margin-bottom:14px;" id="installTargetTabs"><button class="active" data-target="device">Single device</button><button data-target="group">Whole group</button></div>
+        <div class="field" id="installTargetField"><label>Device</label>
+          <select id="installTarget">${state.devices.map(d=>`<option value="${esc(d.device_id)}">${esc(deviceLabel(d))}</option>`).join('')}</select>
         </div>
-        <div class="field-row" style="margin-top:8px; margin-bottom:0;">
-          <select id="assign-device-${l.id}">
-            <option value="">Assign to device…</option>
-            ${devices.map(d => `<option value="${d.device_id}">${escapeHtml(d.name || d.device_id)}</option>`).join('')}
-          </select>
-          <button class="btn" onclick="assignLayout(${l.id}, 'device')">Assign</button>
-          <select id="assign-group-${l.id}">
-            <option value="">Assign to group…</option>
-            ${groups.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('')}
-          </select>
-          <button class="btn" onclick="assignLayout(${l.id}, 'group')">Assign</button>
+        <p class="text-faint" style="font-size:11.5px; line-height:1.5;">Android will prompt on-device to confirm the install unless the agent has Device Owner privileges.</p>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Cancel</button><button class="btn btn-primary" id="installSendBtn">${icon('send',14)} Install</button></div>
+    `);
+    wireModalClose();
+    let targetType = 'device';
+    document.querySelectorAll('#installTargetTabs [data-target]').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('#installTargetTabs [data-target]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      targetType = t.dataset.target;
+      document.getElementById('installTargetField').innerHTML = targetType==='device'
+        ? `<label>Device</label><select id="installTarget">${state.devices.map(d=>`<option value="${esc(d.device_id)}">${esc(deviceLabel(d))}</option>`).join('')}</select>`
+        : `<label>Group</label><select id="installTarget">${state.groups.map(g=>`<option value="${g.id}">${esc(g.name)} (${g.device_count})</option>`).join('')}</select>`;
+    }));
+    document.getElementById('installSendBtn').addEventListener('click', async ()=>{
+      const val = document.getElementById('installTarget').value;
+      if (!val){ toast('Choose a target', 'err'); return; }
+      try{
+        if (targetType==='device'){
+          await api(`/api/devices/${encodeURIComponent(val)}/commands`, { method:'POST', json:{ command_type:'INSTALL_APP', payload:{ apk_url: apk.url } } });
+          toast('Install command sent', 'ok');
+        } else {
+          const ids = state.devices.filter(d=>String(d.group_id)===val).map(d=>d.device_id);
+          if (!ids.length){ toast('That group has no devices', 'err'); return; }
+          const res = await api('/api/devices/bulk-commands', { method:'POST', json:{ device_ids:ids, command_type:'INSTALL_APP', payload:{ apk_url: apk.url } } });
+          toast(`Install command sent to ${res.sent_to} device(s)`, 'ok');
+        }
+        closeModal();
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+
+  /* ============================= ALERTS ============================= */
+  function renderAlerts(){
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Alerts</h1><div class="lede">Devices offline, low on battery, or low on storage right now.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          ${state.alerts.length === 0 ? `<div class="empty-state">${icon('check',32)}<div class="t">All clear</div><div class="d">Every device is online with healthy battery and storage.</div></div>` :
+          `<div class="timeline">${state.alerts.map(a=>`
+            <div class="timeline-item">
+              <span class="timeline-dot" style="background:${a.alerts.some(x=>x.type==='offline')?'var(--red)':'var(--amber)'}"></span>
+              <div class="timeline-body">
+                <div class="timeline-title">${esc(a.name||a.device_id)} <span class="mono text-faint" style="font-weight:400;">${esc(a.device_id)}</span></div>
+                <div class="flex gap8" style="margin-top:5px; flex-wrap:wrap;">
+                  ${a.alerts.map(x=>`<span class="badge ${x.type==='offline'?'b-red':x.type==='low_battery'?'b-amber':'b-blue'}">${esc(x.message)}</span>`).join('')}
+                </div>
+              </div>
+              <button class="btn btn-sm" data-open-device="${esc(a.device_id)}">Manage</button>
+            </div>`).join('')}</div>`}
         </div>
       </div>
-    `).join('');
+    `;
+  }
+  function wireAlertsEvents(){}
 
-    Object.entries(preserved).forEach(([id, value]) => {
-      const el = document.getElementById(id);
-      if (el) el.value = value;
+  /* ============================= DEVICE DRAWER ============================= */
+  let drawerDeviceId = null;
+  let drawerData = null;
+  let drawerTab = 'overview';
+
+  async function openDeviceDrawer(deviceId){
+    drawerDeviceId = deviceId; drawerTab = 'overview';
+    document.getElementById('drawerTitle').textContent = 'Loading…';
+    document.getElementById('drawerSub').textContent = deviceId;
+    document.getElementById('drawerBody').innerHTML = `<div class="skel" style="height:180px;"></div>`;
+    openDrawer();
+    try{
+      drawerData = await api(`/api/devices/${encodeURIComponent(deviceId)}`);
+      paintDrawer();
+    }catch(err){
+      document.getElementById('drawerBody').innerHTML = `<div class="empty-state">${icon('danger',26)}<div class="t">Couldn't load device</div><div class="d">${esc(err.message)}</div></div>`;
+    }
+  }
+  function paintDrawer(){
+    const d = drawerData.device;
+    const s = deviceStatus(d);
+    document.getElementById('drawerTitle').textContent = deviceLabel(d);
+    document.getElementById('drawerSub').innerHTML = `<span class="mono">${esc(d.device_id)}</span>`;
+    document.getElementById('drawerTabs').innerHTML = ['overview','control','history'].map(t=>
+      `<div class="drawer-tab ${drawerTab===t?'active':''}" data-drawer-tab="${t}">${t==='overview'?'Overview':t==='control'?'Remote Control':'History'}</div>`
+    ).join('');
+    document.querySelectorAll('[data-drawer-tab]').forEach(el=>el.addEventListener('click', ()=>{ drawerTab = el.dataset.drawerTab; paintDrawer(); }));
+    const body = document.getElementById('drawerBody');
+    if (drawerTab === 'overview') body.innerHTML = drawerOverviewHtml(d, s);
+    else if (drawerTab === 'control') body.innerHTML = drawerControlHtml(d);
+    else body.innerHTML = drawerHistoryHtml();
+    wireDrawerEvents(d);
+  }
+
+  function drawerOverviewHtml(d, s){
+    const battColor = d.battery==null?'var(--surface-3)':d.battery<20?'var(--red)':d.battery<40?'var(--amber)':'var(--green)';
+    return `
+      <div class="flex gap8" style="margin-bottom:16px;">
+        <span class="badge ${statusMeta(s).badge}" style="font-size:12px; padding:5px 10px;">${signalIcon(s)} ${statusMeta(s).label}</span>
+        <span class="text-faint mono" style="font-size:11.5px;">last seen ${fmtRelTime(d.last_seen)}</span>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="stat-card"><div class="stat-label">${icon('battery',12)} Battery</div><div class="stat-value" style="font-size:20px;">${d.battery!=null?d.battery+'%':'—'}</div><div class="meter" style="width:100%; margin-top:8px;"><i style="width:${d.battery??0}%; background:${battColor}"></i></div></div>
+        <div class="stat-card"><div class="stat-label">${icon('plug',12)} Power</div><div class="stat-value" style="font-size:20px;">${d.power_connected==null?'—':d.power_connected?'Plugged in':'On battery'}</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('devices',12)} Storage free</div><div class="stat-value" style="font-size:20px;">${fmtBytes(d.storage_free)}</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('volume',12)} Volume</div><div class="stat-value" style="font-size:20px;">${d.volume_percent!=null?d.volume_percent+'%':'—'} ${d.muted?'<span class="badge b-gray" style="font-size:9.5px;">muted</span>':''}</div></div>
+      </div>
+      <hr class="divider">
+      <div class="field"><label>Group</label>
+        <select id="drawerGroupSelect">
+          <option value="">Uncategorized</option>
+          ${state.groups.map(g=>`<option value="${g.id}" ${String(d.group_id)===String(g.id)?'selected':''}>${esc(g.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12.5px; margin-top:16px;">
+        <div><div class="text-faint">Agent version</div><div class="mono" style="margin-top:2px;">${esc(d.app_version||'—')}</div></div>
+        <div><div class="text-faint">Brightness</div><div class="mono" style="margin-top:2px;">${d.brightness_percent!=null?d.brightness_percent+'%':'—'}</div></div>
+        <div><div class="text-faint">Registered</div><div class="mono" style="margin-top:2px;">${fmtDate(d.created_at)}</div></div>
+        <div><div class="text-faint">FCM push</div><div class="mono" style="margin-top:2px;">${d.fcm_token?'Registered':'Not registered'}</div></div>
+      </div>
+    `;
+  }
+
+  const CONTROL_ACTIONS = [
+    { type:'REFRESH_CONTENT', label:'Refresh content', desc:'Re-fetch and re-apply the assigned layout now', icon:'refresh' },
+    { type:'CLEAR_AD', label:'Clear pushed ad', desc:'Remove any full-screen ad overlay', icon:'clear' },
+    { type:'LOCK_DEVICE', label:'Lock screen', desc:'Lock now (needs Device Admin active)', icon:'lock' },
+    { type:'RELEASE_LOCK', label:'Release lock', desc:'Undo a Force Lock', icon:'unlock' },
+    { type:'FORCE_LOCK', label:'Force lock', desc:'Keep re-locking until released', icon:'lock', danger:true },
+    { type:'REBOOT', label:'Reboot device', desc:'Requires Device Owner mode', icon:'power', danger:true },
+  ];
+  function drawerControlHtml(d){
+    return `
+      <div class="action-grid" style="margin-bottom:18px;">
+        ${CONTROL_ACTIONS.map(a=>`
+          <div class="action-btn ${a.danger?'danger':''}" data-quick-cmd="${a.type}">
+            ${icon(a.icon,16)}<span class="label">${a.label}</span><span class="desc">${a.desc}</span>
+          </div>`).join('')}
+      </div>
+
+      <fieldset>
+        <legend>Show message</legend>
+        <div class="inline-form"><input id="ctlMessage" placeholder="Message text"><button class="btn btn-sm btn-primary" data-send-message>${icon('send',12)}</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Volume — ${d.volume_percent??'—'}%</legend>
+        <div class="range-row"><input type="range" id="ctlVolume" min="0" max="100" value="${d.volume_percent??50}"><span class="val" id="ctlVolumeVal">${d.volume_percent??50}</span><button class="btn btn-sm" data-send-volume>Set</button></div>
+        <div class="flex gap8" style="margin-top:10px;"><span class="text-dim" style="font-size:12px;">Muted</span><label class="toggle"><input type="checkbox" id="ctlMute" ${d.muted?'checked':''}><span class="track"></span></label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Brightness — ${d.brightness_percent??'—'}%</legend>
+        <div class="range-row"><input type="range" id="ctlBrightness" min="0" max="100" value="${d.brightness_percent??70}"><span class="val" id="ctlBrightnessVal">${d.brightness_percent??70}</span><button class="btn btn-sm" data-send-brightness>Set</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Open app</legend>
+        <div class="inline-form"><input id="ctlPackage" placeholder="com.example.app" class="mono"><button class="btn btn-sm btn-primary" data-send-openapp>${icon('send',12)}</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Push ad instantly</legend>
+        <div class="inline-form">
+          <select id="ctlAdPick"><option value="">Choose content…</option>${state.ads.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-primary" data-send-pushad>${icon('send',12)}</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Install APK</legend>
+        <div class="inline-form">
+          <select id="ctlApkPick"><option value="">Choose an uploaded APK…</option>${state.apks.map(a=>`<option value="${a.id}">${esc(a.filename)}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-primary" data-send-install>${icon('send',12)}</button>
+        </div>
+      </fieldset>
+
+      <fieldset style="margin-bottom:0;">
+        <legend>Heartbeat interval</legend>
+        <div class="inline-form"><input id="ctlInterval" type="number" min="15" placeholder="Minutes (min 15)"><button class="btn btn-sm btn-primary" data-send-interval>${icon('send',12)}</button></div>
+      </fieldset>
+    `;
+  }
+
+  function drawerHistoryHtml(){
+    const hist = (drawerData.history || []).slice().reverse();
+    const commands = drawerData.commands || [];
+    const spark = hist.length > 1 ? sparklineSvg(hist.map(h=>h.battery)) : '';
+    return `
+      <div style="margin-bottom:18px;">
+        <div class="flex" style="justify-content:space-between; margin-bottom:6px;"><span class="text-dim" style="font-size:12px; font-weight:600;">Battery, last ${hist.length} heartbeats</span></div>
+        ${hist.length > 1 ? spark : `<div class="text-faint" style="font-size:12px;">Not enough heartbeat history yet.</div>`}
+      </div>
+      <hr class="divider">
+      <div class="text-dim" style="font-size:12px; font-weight:600; margin-bottom:8px;">Command log</div>
+      ${commands.length === 0 ? `<div class="text-faint" style="font-size:12.5px;">No commands sent yet.</div>` :
+        `<div class="timeline">${commands.map(c=>{
+          const badge = c.status==='done'?'b-green':c.status==='failed'?'b-red':c.status==='delivered'?'b-blue':'b-gray';
+          return `<div class="timeline-item">
+            <span class="timeline-dot" style="background:${c.status==='done'?'var(--green)':c.status==='failed'?'var(--red)':'var(--text-faint)'}"></span>
+            <div class="timeline-body">
+              <div class="timeline-title mono">${esc(c.command_type)} <span class="badge ${badge}" style="margin-left:4px;">${c.status}</span></div>
+              <div class="timeline-meta">${fmtDate(c.created_at)}${c.result?' · '+esc(c.result):''}</div>
+            </div>
+          </div>`;
+        }).join('')}</div>`}
+    `;
+  }
+  function sparklineSvg(values){
+    const w = 420, h = 64, pad = 4;
+    const max = 100, min = 0;
+    const pts = values.map((v,i)=>{
+      const x = pad + (i/(values.length-1)) * (w-2*pad);
+      const y = h - pad - ((v-min)/(max-min)) * (h-2*pad);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <polyline points="${pts}" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  async function sendDeviceCommand(deviceId, command_type, payload, successMsg){
+    try{
+      await api(`/api/devices/${encodeURIComponent(deviceId)}/commands`, { method:'POST', json:{ command_type, payload: payload ?? null } });
+      toast(successMsg || `${command_type.replace(/_/g,' ').toLowerCase()} sent`, 'ok');
+      if (drawerDeviceId === deviceId && drawerTab === 'history'){
+        drawerData = await api(`/api/devices/${encodeURIComponent(deviceId)}`); paintDrawer();
+      }
+    }catch(err){ toast(err.message, 'err'); }
+  }
+
+  function wireDrawerEvents(d){
+    document.querySelectorAll('[data-quick-cmd]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const type = btn.dataset.quickCmd;
+      if (['REBOOT','FORCE_LOCK'].includes(type)){
+        const ok = await confirmAction(`Send "${type.replace(/_/g,' ')}" to ${deviceLabel(d)}?`, {confirmLabel:'Send'});
+        if (!ok) return;
+      }
+      sendDeviceCommand(d.device_id, type);
+    }));
+    document.querySelector('[data-send-message]')?.addEventListener('click', ()=>{
+      const text = document.getElementById('ctlMessage').value.trim();
+      if (!text){ toast('Enter a message', 'err'); return; }
+      sendDeviceCommand(d.device_id, 'SHOW_MESSAGE', { text }, 'Message sent');
+    });
+    const vol = document.getElementById('ctlVolume');
+    vol?.addEventListener('input', ()=>document.getElementById('ctlVolumeVal').textContent = vol.value);
+    document.querySelector('[data-send-volume]')?.addEventListener('click', ()=>sendDeviceCommand(d.device_id, 'SET_VOLUME', { level:Number(vol.value) }, 'Volume set'));
+    document.getElementById('ctlMute')?.addEventListener('change', (e)=>sendDeviceCommand(d.device_id, 'SET_MUTE', { muted:e.target.checked }, e.target.checked?'Muted':'Unmuted'));
+    const bri = document.getElementById('ctlBrightness');
+    bri?.addEventListener('input', ()=>document.getElementById('ctlBrightnessVal').textContent = bri.value);
+    document.querySelector('[data-send-brightness]')?.addEventListener('click', ()=>sendDeviceCommand(d.device_id, 'SET_BRIGHTNESS', { level:Number(bri.value) }, 'Brightness set'));
+    document.querySelector('[data-send-openapp]')?.addEventListener('click', ()=>{
+      const pkg = document.getElementById('ctlPackage').value.trim();
+      if (!pkg){ toast('Enter a package name', 'err'); return; }
+      sendDeviceCommand(d.device_id, 'OPEN_APP', { package_name:pkg }, 'Open app command sent');
+    });
+    document.querySelector('[data-send-pushad]')?.addEventListener('click', ()=>{
+      const id = document.getElementById('ctlAdPick').value;
+      if (!id){ toast('Choose content first', 'err'); return; }
+      const ad = state.ads.find(a=>String(a.id)===id);
+      sendDeviceCommand(d.device_id, 'PUSH_AD', { media_type:ad.media_type, url:ad.url }, 'Ad pushed');
+    });
+    document.querySelector('[data-send-install]')?.addEventListener('click', ()=>{
+      const id = document.getElementById('ctlApkPick').value;
+      if (!id){ toast('Choose an APK first', 'err'); return; }
+      const apk = state.apks.find(a=>String(a.id)===id);
+      sendDeviceCommand(d.device_id, 'INSTALL_APP', { apk_url:apk.url }, 'Install command sent');
+    });
+    document.querySelector('[data-send-interval]')?.addEventListener('click', ()=>{
+      const min = Number(document.getElementById('ctlInterval').value);
+      if (!min || min < 15){ toast('Enter 15 or more minutes', 'err'); return; }
+      sendDeviceCommand(d.device_id, 'SET_REPORT_INTERVAL', { minutes:min }, 'Report interval updated');
+    });
+    document.getElementById('drawerGroupSelect')?.addEventListener('change', async (e)=>{
+      try{
+        await api(`/api/devices/${encodeURIComponent(d.device_id)}`, { method:'PATCH', json:{ group_id: e.target.value ? Number(e.target.value) : null } });
+        toast('Group updated', 'ok'); await loadAll(false);
+      }catch(err){ toast(err.message, 'err'); }
     });
   }
 
-  async function assignLayout(layoutId, kind) {
-    const value = document.getElementById(`assign-${kind}-${layoutId}`).value;
-    if (!value) { alert(`Pick a ${kind} from the dropdown first.`); return; }
-    const body = kind === 'device' ? { device_id: value } : { group_id: Number(value) };
-    const res = await fetch(`/api/layouts/${layoutId}/assign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    alert(data.ok ? `Assigned — pushed to ${data.notified} device(s).` : (data.error || 'assign failed'));
-  }
-
-  async function deleteLayout(id) {
-    if (!confirm('Delete this layout? Devices showing it will fall back to "no layout assigned".')) return;
-    await fetch(`/api/layouts/${id}`, { method: 'DELETE' });
-    await loadLayouts();
-  }
-
-  // ---------------- boot ----------------
-
-  async function refreshAll() {
-    await loadGroups();
-    await loadDevices();
-    await loadAlerts();
-    if (selectedDeviceId) await loadDetail(selectedDeviceId);
-  }
-
-  // devices/groups must be loaded before loadLayouts() renders the
-  // "Assign to device/group" dropdowns — otherwise those dropdowns build
-  // with nothing but the empty placeholder option, and clicking Assign
-  // silently does nothing (nothing was actually selected).
-  async function boot() {
-    await refreshAll();
-    await loadAds();
-    await loadLayouts();
-    onAdMediaTypeChange();
-    renderTemplatePicker();
-    setInterval(refreshAll, 15000);
-  }
-  boot();
 </script>
+
 </body>
 </html>
