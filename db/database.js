@@ -124,7 +124,7 @@ await pool.query(`
     CREATE TABLE IF NOT EXISTS ads (
       id                SERIAL PRIMARY KEY,
       name              TEXT NOT NULL,
-      media_type        TEXT NOT NULL CHECK (media_type IN ('image', 'video', 'web')),
+      media_type        TEXT NOT NULL CHECK (media_type IN ('image', 'video', 'web', 'text')),
       source            TEXT NOT NULL CHECK (source IN ('upload', 'url')),
       content_type      TEXT,
       size              BIGINT,
@@ -133,6 +133,19 @@ await pool.query(`
       duration_seconds  INTEGER NOT NULL DEFAULT 10,
       created_at        TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Migration: earlier deployments created `ads` before 'text' existed as a
+  // media_type, so their CHECK constraint only allows ('image','video','web').
+  // CREATE TABLE IF NOT EXISTS above is a no-op on those, so fix it here by
+  // dropping and re-adding the constraint with 'text' included. Safe to run
+  // every boot: DROP...IF EXISTS + re-add is idempotent.
+  await pool.query(`
+    ALTER TABLE ads DROP CONSTRAINT IF EXISTS ads_media_type_check;
+  `);
+  await pool.query(`
+    ALTER TABLE ads ADD CONSTRAINT ads_media_type_check
+      CHECK (media_type IN ('image', 'video', 'web', 'text'));
   `);
 
   // A layout is just a named template ('split2' | 'split3' | 'grid4' |
