@@ -459,6 +459,7 @@
           <option value="grid4">4-way grid</option>
           <option value="pip">Picture-in-picture</option>
           <option value="ticker">Main + bottom ticker</option>
+          <option value="ticker_top">Main + top ticker</option>
         </select>
         <div id="zone-pickers" style="margin-bottom:10px;"></div>
         <div>
@@ -1207,6 +1208,7 @@
     grid4: [['top_left', 'Top left'], ['top_right', 'Top right'], ['bottom_left', 'Bottom left'], ['bottom_right', 'Bottom right']],
     pip: [['main', 'Main (fullscreen)'], ['pip', 'Corner overlay']],
     ticker: [['main', 'Main (fullscreen)'], ['ticker', 'Bottom ticker']],
+    ticker_top: [['main', 'Main (fullscreen)'], ['ticker', 'Top ticker']],
   };
 
   // Title + a tiny CSS-grid diagram per template, purely so an admin can
@@ -1244,6 +1246,12 @@
       sub: 'Fullscreen main with a thin strip along the bottom',
       cols: 1, rows: 2,
       areas: { main: '1 / 1 / 2 / 2', ticker: '2 / 1 / 3 / 2' },
+    },
+    ticker_top: {
+      title: 'Main + top ticker',
+      sub: 'Fullscreen main with a thin running strip along the top',
+      cols: 1, rows: 2,
+      areas: { ticker: '1 / 1 / 2 / 2', main: '2 / 1 / 3 / 2' },
     },
   };
 

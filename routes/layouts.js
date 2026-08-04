@@ -12,6 +12,9 @@ const TEMPLATE_ZONES = {
   grid4: ["top_left", "top_right", "bottom_left", "bottom_right"],
   pip: ["main", "pip"],
   ticker: ["main", "ticker"],
+  // Same zones as `ticker` — the Android player just draws the ticker
+  // strip above the main zone instead of below it.
+  ticker_top: ["main", "ticker"],
 };
 
 // Every zone the chosen template defines must have at least one ad/video/
