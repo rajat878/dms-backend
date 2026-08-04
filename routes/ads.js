@@ -90,11 +90,17 @@ async function createFromUrl(req, res) {
   if (!name || !media_type) {
     return res.status(400).json({ ok: false, error: "name and media_type are required" });
   }
-  if (!["image", "video", "web"].includes(media_type)) {
-    return res.status(400).json({ ok: false, error: "media_type must be image, video, or web" });
+  if (!["image", "video", "web", "text"].includes(media_type)) {
+    return res.status(400).json({ ok: false, error: "media_type must be image, video, web, or text" });
   }
   if (!external_url) {
-    return res.status(400).json({ ok: false, error: "external_url is required" });
+    // For media_type 'text' this field holds the literal text content, not
+    // a URL — same column, reused, so no schema change needed. Still
+    // required either way: a text ad with no text is nothing to display.
+    return res.status(400).json({
+      ok: false,
+      error: media_type === "text" ? "text content is required" : "external_url is required",
+    });
   }
 
   try {
@@ -115,10 +121,14 @@ async function createFromUrl(req, res) {
 
 // 'web' zones are typically left on screen rather than timed out (a live
 // dashboard/menu board), so default them much longer than image/video.
+// 'text' gets a middle-ground default — long enough to read, short enough
+// to still rotate.
 function parseDuration(raw, mediaType) {
   const n = Number(raw);
   if (Number.isFinite(n) && n > 0) return Math.round(n);
-  return mediaType === "web" ? 60 : 10;
+  if (mediaType === "web") return 60;
+  if (mediaType === "text") return 15;
+  return 10;
 }
 
 // GET /api/ads — list every ad for the dashboard's picker.

@@ -14,6 +14,16 @@ const TEMPLATE_ZONES = {
   ticker: ["main", "ticker"],
 };
 
+// Every zone the chosen template defines must have at least one ad/video/
+// text item before a layout can be created or saved — a half-empty zone
+// would otherwise just render "No content assigned" on a live screen, and
+// admins have asked that incomplete layouts simply not be creatable rather
+// than silently going out blank. Returns the list of missing zone keys
+// (empty array = valid).
+function missingZones(validZones, zones) {
+  return validZones.filter((zoneKey) => !Array.isArray(zones?.[zoneKey]) || zones[zoneKey].length === 0);
+}
+
 async function fetchLayoutDetail(layoutId) {
   const layoutResult = await pool.query(`SELECT * FROM layouts WHERE id = $1`, [layoutId]);
   if (layoutResult.rows.length === 0) return null;
@@ -59,6 +69,14 @@ router.post("/", async (req, res) => {
     return res.status(400).json({
       ok: false,
       error: `unknown template '${template}' — must be one of: ${Object.keys(TEMPLATE_ZONES).join(", ")}`,
+    });
+  }
+
+  const missing = missingZones(validZones, zones);
+  if (missing.length > 0) {
+    return res.status(400).json({
+      ok: false,
+      error: `every zone needs at least one image, video, or text item — missing: ${missing.join(", ")}`,
     });
   }
 
@@ -149,6 +167,15 @@ router.put("/:id", async (req, res) => {
     }
     const layout = layoutResult.rows[0];
     const validZones = TEMPLATE_ZONES[layout.template];
+
+    const missing = missingZones(validZones, zones);
+    if (missing.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        ok: false,
+        error: `every zone needs at least one image, video, or text item — missing: ${missing.join(", ")}`,
+      });
+    }
 
     if (name) {
       await client.query(`UPDATE layouts SET name = $1 WHERE id = $2`, [name, req.params.id]);

@@ -423,6 +423,7 @@
             <option value="image">Image</option>
             <option value="video">Video</option>
             <option value="web">Web / HTML page</option>
+            <option value="text">Text</option>
           </select>
           <input id="ad-duration" type="number" min="1" placeholder="Seconds per play" style="width:150px;" value="10">
         </div>
@@ -430,6 +431,9 @@
           <input id="ad-file" type="file" accept="image/*,video/*">
           <span style="color:var(--text-muted); font-size:12px;">or</span>
           <input id="ad-url" placeholder="https://... external file or page URL" style="flex:1; min-width:220px;">
+        </div>
+        <div class="field-row" id="ad-text-row" style="display:none;">
+          <textarea id="ad-text" placeholder="Text to display (e.g. a promo line, announcement, or quote)" rows="2" style="flex:1; min-width:220px; resize:vertical; background:var(--bg); color:inherit; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:inherit; font-size:13px;"></textarea>
         </div>
         <div>
           <button class="btn" onclick="uploadAd()" id="ad-submit-btn">Add ad</button>
@@ -442,22 +446,23 @@
     <div class="table-wrap" style="margin-top:16px;">
       <div style="padding:16px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
         <div style="font-size:15px; font-weight:600;">Layouts</div>
-        <div style="font-size:12px; color:var(--text-muted);">Split screens across 2\u20134 zones and assign to devices or groups</div>
+        <div style="font-size:12px; color:var(--text-muted);">Pick a design, fill every zone, then assign to devices or groups</div>
       </div>
       <div style="padding:16px 18px; border-bottom:1px solid var(--border);">
         <div class="field-row">
           <input id="layout-name" placeholder="Layout name (e.g. Lobby screen)" style="flex:1; min-width:160px;">
-          <select id="layout-template" onchange="renderZonePickers()">
-            <option value="split2">2-way split</option>
-            <option value="split3">3-way (hero + 2 side)</option>
-            <option value="grid4">4-way grid</option>
-            <option value="pip">Picture-in-picture</option>
-            <option value="ticker">Main + bottom ticker</option>
-          </select>
         </div>
+        <div id="template-picker" style="display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 16px;"></div>
+        <select id="layout-template" onchange="renderZonePickers()" style="display:none;">
+          <option value="split2">2-way split</option>
+          <option value="split3">3-way (hero + 2 side)</option>
+          <option value="grid4">4-way grid</option>
+          <option value="pip">Picture-in-picture</option>
+          <option value="ticker">Main + bottom ticker</option>
+        </select>
         <div id="zone-pickers" style="margin-bottom:10px;"></div>
         <div>
-          <button class="btn" onclick="createLayout()">Create layout</button>
+          <button class="btn" onclick="createLayout()" id="create-layout-btn">Create layout</button>
           <span id="layout-submit-status" style="font-size:12px; color:var(--text-muted); margin-left:8px;"></span>
         </div>
       </div>
@@ -1204,10 +1209,97 @@
     ticker: [['main', 'Main (fullscreen)'], ['ticker', 'Bottom ticker']],
   };
 
+  // Title + a tiny CSS-grid diagram per template, purely so an admin can
+  // recognize the shape at a glance instead of reading "grid4" and having
+  // to guess. grid/areas describe a 2x2 CSS grid; each zone key maps to
+  // the grid-area(s) it occupies (a zone can span more than one cell, e.g.
+  // split3's "main").
+  const TEMPLATE_META = {
+    split2: {
+      title: '2-way split',
+      sub: 'Two equal halves, side by side',
+      cols: 2, rows: 1,
+      areas: { left: '1 / 1 / 2 / 2', right: '1 / 2 / 2 / 3' },
+    },
+    split3: {
+      title: '3-way (hero + 2 side)',
+      sub: 'Big panel plus two stacked smaller ones',
+      cols: 2, rows: 2,
+      areas: { main: '1 / 1 / 3 / 2', top_right: '1 / 2 / 2 / 3', bottom_right: '2 / 2 / 3 / 3' },
+    },
+    grid4: {
+      title: '4-way grid',
+      sub: 'Four equal quadrants',
+      cols: 2, rows: 2,
+      areas: { top_left: '1 / 1 / 2 / 2', top_right: '1 / 2 / 2 / 3', bottom_left: '2 / 1 / 3 / 2', bottom_right: '2 / 2 / 3 / 3' },
+    },
+    pip: {
+      title: 'Picture-in-picture',
+      sub: 'Fullscreen main + small corner overlay',
+      cols: 2, rows: 2,
+      areas: { main: '1 / 1 / 3 / 3', pip: '2 / 2 / 3 / 3' },
+    },
+    ticker: {
+      title: 'Main + bottom ticker',
+      sub: 'Fullscreen main with a thin strip along the bottom',
+      cols: 1, rows: 2,
+      areas: { main: '1 / 1 / 2 / 2', ticker: '2 / 1 / 3 / 2' },
+    },
+  };
+
+  function templateDiagramHtml(key, small) {
+    const meta = TEMPLATE_META[key];
+    const size = small ? 56 : 84;
+    const cells = Object.entries(meta.areas).map(([zoneKey, area]) => `
+      <div style="grid-area: ${area}; background: var(--panel-hover); border: 1px solid var(--border); border-radius: 3px; ${zoneKey === 'pip' ? 'opacity:0.9;' : ''}"></div>
+    `).join('');
+    return `
+      <div style="width:${size}px; height:${Math.round(size * 0.6)}px; display:grid;
+                  grid-template-columns: repeat(${meta.cols}, 1fr); grid-template-rows: repeat(${meta.rows}, 1fr);
+                  gap:3px; background:var(--bg); border-radius:4px; padding:3px; flex-shrink:0;">
+        ${cells}
+      </div>
+    `;
+  }
+
+  let selectedTemplate = 'split2';
+
+  function renderTemplatePicker() {
+    const el = document.getElementById('template-picker');
+    if (!el) return;
+    el.innerHTML = Object.keys(TEMPLATE_META).map(key => {
+      const meta = TEMPLATE_META[key];
+      const active = key === selectedTemplate;
+      return `
+        <div onclick="selectTemplate('${key}')"
+             style="cursor:pointer; display:flex; align-items:center; gap:10px; padding:10px 12px;
+                    border-radius:8px; border:1.5px solid ${active ? 'var(--blue)' : 'var(--border)'};
+                    background:${active ? 'var(--panel-hover)' : 'transparent'}; min-width:220px;">
+          ${templateDiagramHtml(key, true)}
+          <div>
+            <div style="font-size:13px; font-weight:600;">${meta.title}</div>
+            <div style="font-size:11px; color:var(--text-muted);">${meta.sub}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function selectTemplate(key) {
+    selectedTemplate = key;
+    document.getElementById('layout-template').value = key;
+    renderTemplatePicker();
+    renderZonePickers();
+  }
+
   function onAdMediaTypeChange() {
-    const isWeb = document.getElementById('ad-media-type').value === 'web';
+    const mediaType = document.getElementById('ad-media-type').value;
+    const isWeb = mediaType === 'web';
+    const isText = mediaType === 'text';
+    document.getElementById('ad-upload-row').style.display = isText ? 'none' : '';
     document.getElementById('ad-file').style.display = isWeb ? 'none' : '';
-    document.getElementById('ad-file').disabled = isWeb;
+    document.getElementById('ad-file').disabled = isWeb || isText;
+    document.getElementById('ad-text-row').style.display = isText ? '' : 'none';
   }
 
   async function loadAds() {
@@ -1231,12 +1323,13 @@
     }
     el.innerHTML = ads.map(ad => `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--panel-hover); border-radius:6px; font-size:13px;">
-        <div>
+        <div style="min-width:0;">
           <strong>${escapeHtml(ad.name)}</strong>
           <span style="color:var(--text-muted); margin-left:8px;">${ad.media_type} · ${ad.duration_seconds}s${ad.size ? ' · ' + formatBytesShort(ad.size) : ''}</span>
+          ${ad.media_type === 'text' ? `<div style="color:var(--text-muted); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:520px;">\u201c${escapeHtml(ad.url)}\u201d</div>` : ''}
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <a href="${ad.url}" target="_blank" style="font-size:12px; color:var(--blue);">preview</a>
+        <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+          ${ad.media_type === 'text' ? '' : `<a href="${ad.url}" target="_blank" style="font-size:12px; color:var(--blue);">preview</a>`}
           <button class="btn secondary" onclick="deleteAd(${ad.id})">Delete</button>
         </div>
       </div>
@@ -1248,6 +1341,7 @@
     const mediaType = document.getElementById('ad-media-type').value;
     const duration = document.getElementById('ad-duration').value || undefined;
     const url = document.getElementById('ad-url').value.trim();
+    const text = document.getElementById('ad-text').value.trim();
     const fileInput = document.getElementById('ad-file');
     const status = document.getElementById('ad-submit-status');
 
@@ -1256,7 +1350,14 @@
     status.textContent = 'saving…';
     try {
       let res;
-      if (mediaType !== 'web' && fileInput.files.length > 0) {
+      if (mediaType === 'text') {
+        if (!text) { status.textContent = 'text content is required'; return; }
+        res = await fetch('/api/ads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, media_type: 'text', external_url: text, duration_seconds: duration ? Number(duration) : undefined }),
+        });
+      } else if (mediaType !== 'web' && fileInput.files.length > 0) {
         const form = new FormData();
         form.append('file', fileInput.files[0]);
         form.append('name', name);
@@ -1276,6 +1377,7 @@
       status.textContent = 'added ✅';
       document.getElementById('ad-name').value = '';
       document.getElementById('ad-url').value = '';
+      document.getElementById('ad-text').value = '';
       fileInput.value = '';
       await loadAds();
       setTimeout(() => { status.textContent = ''; }, 2000);
@@ -1292,32 +1394,74 @@
   }
 
   function renderZonePickers() {
-    const template = document.getElementById('layout-template').value;
+    const template = selectedTemplate;
     const zones = TEMPLATE_ZONES[template] || [];
     const sortedAds = [...ads].sort((a, b) => a.id - b.id);
     const el = document.getElementById('zone-pickers');
     if (sortedAds.length === 0) {
       el.innerHTML = '<div class="empty-sub">Add at least one ad above before building a layout.</div>';
+      updateCreateButtonState();
       return;
     }
-    el.innerHTML = zones.map(([key, label]) => `
-      <div style="margin-bottom:8px;">
-        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">${label} zone — pick one or more (plays in the order checked):</div>
-        <div style="display:flex; flex-wrap:wrap; gap:10px;">
-          ${sortedAds.map(ad => `
-            <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
-              <input type="checkbox" class="zone-check" data-zone="${key}" value="${ad.id}">
-              ${escapeHtml(ad.name)} <span style="color:var(--text-muted);">(${ad.media_type})</span>
-            </label>
+    el.innerHTML = `
+      <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+        ${templateDiagramHtml(template, false)}
+        <div style="flex:1; min-width:260px;">
+          ${zones.map(([key, label]) => `
+            <div style="margin-bottom:10px;" data-zone-group="${key}">
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                ${label} zone — pick one or more (plays in the order checked)
+                <span class="zone-status" data-zone-status="${key}" style="font-size:11px; font-weight:600;"></span>
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                ${sortedAds.map(ad => `
+                  <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
+                    <input type="checkbox" class="zone-check" data-zone="${key}" value="${ad.id}" onchange="updateCreateButtonState()">
+                    ${escapeHtml(ad.name)} <span style="color:var(--text-muted);">(${ad.media_type})</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
           `).join('')}
         </div>
       </div>
-    `).join('');
+    `;
+    updateCreateButtonState();
+  }
+
+  // Every zone the chosen template defines must have at least one ad
+  // checked before the layout can be created — mirrors the same rule the
+  // backend enforces (routes/layouts.js), so an admin sees it up front
+  // instead of getting a 400 after clicking Create.
+  function updateCreateButtonState() {
+    const zones = TEMPLATE_ZONES[selectedTemplate] || [];
+    const btn = document.getElementById('create-layout-btn');
+    const status = document.getElementById('layout-submit-status');
+    let allFilled = zones.length > 0;
+    const missingLabels = [];
+
+    zones.forEach(([key, label]) => {
+      const checkedCount = document.querySelectorAll(`.zone-check[data-zone="${key}"]:checked`).length;
+      const badge = document.querySelector(`[data-zone-status="${key}"]`);
+      if (badge) {
+        badge.textContent = checkedCount > 0 ? '✓ ready' : 'required — empty';
+        badge.style.color = checkedCount > 0 ? 'var(--green, #3ba55d)' : 'var(--red, #e05353)';
+      }
+      if (checkedCount === 0) { allFilled = false; missingLabels.push(label); }
+    });
+
+    if (!btn) return;
+    btn.disabled = !allFilled;
+    btn.style.opacity = allFilled ? '1' : '0.5';
+    btn.style.cursor = allFilled ? 'pointer' : 'not-allowed';
+    if (status && !status.textContent.includes('created') && !status.textContent.includes('saving')) {
+      status.textContent = allFilled ? '' : (missingLabels.length ? `still needs: ${missingLabels.join(', ')}` : '');
+    }
   }
 
   async function createLayout() {
     const name = document.getElementById('layout-name').value.trim();
-    const template = document.getElementById('layout-template').value;
+    const template = selectedTemplate;
     const status = document.getElementById('layout-submit-status');
     if (!name) { status.textContent = 'name is required'; return; }
 
@@ -1326,7 +1470,13 @@
       const zone = cb.dataset.zone;
       (zones[zone] = zones[zone] || []).push(Number(cb.value));
     });
-    if (Object.keys(zones).length === 0) { status.textContent = 'pick at least one ad for one zone'; return; }
+
+    const requiredZones = (TEMPLATE_ZONES[template] || []).map(([key]) => key);
+    const missing = requiredZones.filter(key => !zones[key] || zones[key].length === 0);
+    if (missing.length > 0) {
+      status.textContent = `every zone needs at least one image, video, or text item — missing: ${missing.join(', ')}`;
+      return;
+    }
 
     status.textContent = 'saving…';
     try {
@@ -1340,6 +1490,7 @@
       status.textContent = 'created ✅';
       document.getElementById('layout-name').value = '';
       document.querySelectorAll('.zone-check:checked').forEach(cb => cb.checked = false);
+      updateCreateButtonState();
       await loadLayouts();
       setTimeout(() => { status.textContent = ''; }, 2000);
     } catch (err) {
@@ -1416,6 +1567,7 @@
   loadAds();
   loadLayouts();
   onAdMediaTypeChange();
+  renderTemplatePicker();
   setInterval(refreshAll, 15000);
 </script>
 </body>
