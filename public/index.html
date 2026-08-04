@@ -1262,6 +1262,49 @@
     `;
   }
 
+  // "What will actually show on the device screen right now" — same
+  // template geometry as templateDiagramHtml, but each cell is filled with
+  // the ad(s) currently checked for that zone instead of being blank. This
+  // is what makes it visible up front whether a zone is going to show one
+  // steady image (grid behavior) or rotate between several (playlist
+  // behavior) — both are valid, but the point is you see which one you've
+  // actually set up before pushing it to a real screen.
+  function layoutPreviewHtml(key) {
+    const meta = TEMPLATE_META[key];
+    if (!meta) return '';
+    const zoneKeys = (TEMPLATE_ZONES[key] || []).map(([zoneKey]) => zoneKey);
+    const cells = zoneKeys.map(zoneKey => {
+      const area = meta.areas[zoneKey];
+      const checked = [...document.querySelectorAll(`.zone-check[data-zone="${zoneKey}"]:checked`)]
+        .map(cb => cb.dataset.name || '');
+      let inner;
+      if (checked.length === 0) {
+        inner = `<span style="color:var(--text-muted); font-size:11px;">empty</span>`;
+      } else if (checked.length === 1) {
+        inner = `<span style="font-size:12px; font-weight:600; text-align:center; padding:4px;">${escapeHtml(checked[0])}</span>`;
+      } else {
+        inner = `<div style="text-align:center; padding:4px;">
+            <div style="font-size:11px; color:var(--text-muted);">rotates:</div>
+            <div style="font-size:11px;">${checked.map(escapeHtml).join(' → ')}</div>
+          </div>`;
+      }
+      return `
+        <div style="grid-area: ${area}; background: var(--bg); border: 1.5px dashed ${checked.length ? 'var(--blue)' : 'var(--border)'};
+                    border-radius: 4px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+          ${inner}
+        </div>
+      `;
+    }).join('');
+    return `
+      <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Preview — this is what the device screen will show:</div>
+      <div style="width:260px; height:160px; display:grid;
+                  grid-template-columns: repeat(${meta.cols}, 1fr); grid-template-rows: repeat(${meta.rows}, 1fr);
+                  gap:4px; background:var(--panel-hover); border-radius:6px; padding:6px;">
+        ${cells}
+      </div>
+    `;
+  }
+
   let selectedTemplate = 'split2';
 
   function renderTemplatePicker() {
@@ -1405,18 +1448,18 @@
     }
     el.innerHTML = `
       <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
-        ${templateDiagramHtml(template, false)}
+        <div id="layout-preview"></div>
         <div style="flex:1; min-width:260px;">
           ${zones.map(([key, label]) => `
             <div style="margin-bottom:10px;" data-zone-group="${key}">
               <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-                ${label} zone — pick one or more (plays in the order checked)
+                ${label} zone — pick one for a steady grid slot, or more than one to rotate within this zone
                 <span class="zone-status" data-zone-status="${key}" style="font-size:11px; font-weight:600;"></span>
               </div>
               <div style="display:flex; flex-wrap:wrap; gap:10px;">
                 ${sortedAds.map(ad => `
                   <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
-                    <input type="checkbox" class="zone-check" data-zone="${key}" value="${ad.id}" onchange="updateCreateButtonState()">
+                    <input type="checkbox" class="zone-check" data-zone="${key}" data-name="${escapeHtml(ad.name)}" value="${ad.id}" onchange="updateCreateButtonState()">
                     ${escapeHtml(ad.name)} <span style="color:var(--text-muted);">(${ad.media_type})</span>
                   </label>
                 `).join('')}
@@ -1449,6 +1492,9 @@
       }
       if (checkedCount === 0) { allFilled = false; missingLabels.push(label); }
     });
+
+    const previewEl = document.getElementById('layout-preview');
+    if (previewEl) previewEl.innerHTML = layoutPreviewHtml(selectedTemplate);
 
     if (!btn) return;
     btn.disabled = !allFilled;
