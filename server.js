@@ -8,9 +8,17 @@ const apksRouter = require("./routes/apks");
 const adsRouter = require("./routes/ads");
 const layoutsRouter = require("./routes/layouts");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
+const { requireAdminToken } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+if (!process.env.ADMIN_TOKEN) {
+  console.warn(
+    "⚠️  ADMIN_TOKEN is not set — every /api route is open to anyone with the URL. " +
+    "Set ADMIN_TOKEN in your environment to require it (see .env.example)."
+  );
+}
 
 // Render (and most PaaS hosts) terminate TLS at their own proxy and talk
 // plain HTTP to this process internally. Without this, req.protocol always
@@ -27,6 +35,10 @@ app.use(express.static("public"));
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "dms-backend", status: "running" });
 });
+
+// Everything below this line requires the admin bearer token (unless the
+// specific route is on the public allow-list in middleware/auth.js).
+app.use("/api", requireAdminToken);
 
 app.use("/api/devices", devicesRouter);
 app.use("/api/groups", groupsRouter);
