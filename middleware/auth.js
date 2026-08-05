@@ -12,6 +12,7 @@
 // concept of an admin session:
 //   - POST /api/devices/heartbeat            (agent check-in)
 //   - POST /api/devices/:id/register-token   (agent registers its FCM token)
+//   - POST /api/devices/:id/plays            (agent reports proof-of-play events)
 //   - GET  /api/devices/:id/screen           (player resolves what to show)
 //   - GET  /api/ads/:id/file                 (player streams ad media)
 //   - GET  /api/apks/:id/download            (agent downloads an APK to install)
@@ -19,6 +20,7 @@
 const PUBLIC_ROUTES = [
   { method: "POST", pattern: /^\/api\/devices\/heartbeat$/ },
   { method: "POST", pattern: /^\/api\/devices\/[^/]+\/register-token$/ },
+  { method: "POST", pattern: /^\/api\/devices\/[^/]+\/plays$/ },
   { method: "GET", pattern: /^\/api\/devices\/[^/]+\/screen$/ },
   { method: "GET", pattern: /^\/api\/ads\/\d+\/file$/ },
   { method: "GET", pattern: /^\/api\/apks\/\d+\/download$/ },

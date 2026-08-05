@@ -217,6 +217,41 @@ await pool.query(`
       uploaded_at   TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  // ---- Proof-of-play ------------------------------------------------
+  // One row per zone item actually shown on a screen. The Android player
+  // logs these locally the instant an item's on-screen window starts (see
+  // PlayLogStore.kt) and batches them up to POST /api/devices/:id/plays
+  // whenever it has a connection — so a play that happened while the
+  // device was offline still shows up here once it reconnects, just late.
+  //
+  // ad_name/media_type are snapshotted at play time (not just joined via
+  // ad_id) so a report from last month still reads correctly even if that
+  // ad was since renamed or deleted — that's the whole point of a proof-
+  // of-play record: it has to remain accurate as a historical fact.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS play_logs (
+      id                SERIAL PRIMARY KEY,
+      device_id         TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+      ad_id             INTEGER REFERENCES ads(id) ON DELETE SET NULL,
+      ad_name           TEXT NOT NULL,
+      media_type        TEXT NOT NULL,
+      layout_id         INTEGER REFERENCES layouts(id) ON DELETE SET NULL,
+      zone_key          TEXT,
+      played_at         TIMESTAMPTZ NOT NULL,
+      duration_seconds  INTEGER NOT NULL,
+      received_at       TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_play_logs_played_at ON play_logs (played_at);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_play_logs_device_played ON play_logs (device_id, played_at);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_play_logs_ad_played ON play_logs (ad_id, played_at);
+  `);
 }
 
 module.exports = { pool, initDb };

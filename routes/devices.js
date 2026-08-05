@@ -401,4 +401,52 @@ router.post("/:device_id/commands/:command_id/ack", async (req, res) => {
   }
 });
 
+// POST /api/devices/:device_id/plays
+// The Android agent calls this to report a batch of proof-of-play events —
+// see PlayLogStore.kt for how it queues these locally and retries until
+// they're confirmed. This is device-facing (no admin token — the device
+// can't log in) but does require the device to already exist, same as
+// every other per-device endpoint.
+router.post("/:device_id/plays", async (req, res) => {
+  const { plays } = req.body;
+
+  if (!Array.isArray(plays) || plays.length === 0) {
+    return res.status(400).json({ ok: false, error: "plays (non-empty array) is required" });
+  }
+  if (plays.length > 1000) {
+    return res.status(400).json({ ok: false, error: "too many plays in one batch (max 1000)" });
+  }
+
+  try {
+    const deviceResult = await pool.query(
+      `SELECT device_id FROM devices WHERE device_id = $1`,
+      [req.params.device_id]
+    );
+    if (deviceResult.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+
+    let inserted = 0;
+    for (const p of plays) {
+      if (!p.ad_name || !p.media_type || !p.played_at || p.duration_seconds == null) continue;
+      await pool.query(
+        `
+        INSERT INTO play_logs (device_id, ad_id, ad_name, media_type, layout_id, zone_key, played_at, duration_seconds)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `,
+        [
+          req.params.device_id, p.ad_id ?? null, p.ad_name, p.media_type,
+          p.layout_id ?? null, p.zone_key ?? null, p.played_at, p.duration_seconds
+        ]
+      );
+      inserted++;
+    }
+
+    res.status(201).json({ ok: true, inserted });
+  } catch (err) {
+    console.error("submit plays error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 module.exports = router;

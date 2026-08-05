@@ -550,6 +550,7 @@
     text:'<path d="M5 6h14M5 12h14M5 18h9" stroke-linecap="round"/>',
     bell:'<path d="M12 3a6 6 0 00-6 6v4l-2 3h16l-2-3V9a6 6 0 00-6-6z" stroke-linejoin="round"/><path d="M9.5 20a2.5 2.5 0 005 0" stroke-linecap="round"/>',
     spark:'<path d="M12 2l1.6 5.3L19 9l-5.4 1.7L12 16l-1.6-5.3L5 9l5.4-1.7L12 2z" stroke-linejoin="round"/>',
+  chart:'<path d="M4 20V10M12 20V4M20 20v-7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 20h18" stroke-linecap="round"/>',
     logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke-linecap="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke-linecap="round" stroke-linejoin="round"/>',
   };
   function icon(name, size=16){
@@ -786,11 +787,13 @@
     { id:'layouts', label:'Layouts', icon:'layouts', countKey:'layouts' },
     { id:'apps', label:'Applications', icon:'apps', countKey:'apks' },
     { id:'alerts', label:'Alerts', icon:'alerts', countKey:'alerts', alertKey:true },
+    { id:'reports', label:'Reports', icon:'chart' },
   ];
   const SECTION_SUB = {
     overview:'Fleet health at a glance', devices:'Every screen you manage, live',
     groups:'Organize devices for bulk control', content:'Images, video, web pages & text',
     layouts:'Multi-zone screen templates', apps:'APKs you can push to any device', alerts:'Devices needing attention',
+    reports:'Proof-of-play — what ran, where, and for how long',
   };
 
   function buildNav(){
@@ -857,7 +860,7 @@
   /* ============================= VIEW DISPATCH ============================= */
   function renderView(){
     const v = document.getElementById('view');
-    const renderers = { overview:renderOverview, devices:renderDevices, groups:renderGroups, content:renderContent, layouts:renderLayouts, apps:renderApps, alerts:renderAlerts };
+    const renderers = { overview:renderOverview, devices:renderDevices, groups:renderGroups, content:renderContent, layouts:renderLayouts, apps:renderApps, alerts:renderAlerts, reports:renderReports };
     v.innerHTML = renderers[state.section] ? renderers[state.section]() : '';
     wireSectionEvents();
   }
@@ -1108,7 +1111,7 @@
   }
 
   function wireSectionEvents(){
-    const wirers = { devices:wireDevicesEvents, groups:wireGroupsEvents, content:wireContentEvents, layouts:wireLayoutsEvents, apps:wireAppsEvents, alerts:wireAlertsEvents };
+    const wirers = { devices:wireDevicesEvents, groups:wireGroupsEvents, content:wireContentEvents, layouts:wireLayoutsEvents, apps:wireAppsEvents, alerts:wireAlertsEvents, reports:wireReportsEvents };
     if (wirers[state.section]) wirers[state.section]();
   }
 
@@ -1650,6 +1653,146 @@
     `;
   }
   function wireAlertsEvents(){}
+
+  /* ============================= REPORTS (PROOF-OF-PLAY) ============================= */
+  function defaultReportFilters(){
+    const to = new Date();
+    const from = new Date(Date.now() - 30*24*60*60*1000);
+    const iso = d => d.toISOString().slice(0,10);
+    return { from: iso(from), to: iso(to), device_id:'', group_id:'' };
+  }
+  state.reportFilters = defaultReportFilters();
+  state.reportData = null;
+  state.reportLoading = false;
+
+  function fmtDuration(totalSeconds){
+    const s = Number(totalSeconds)||0;
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${sec}s`;
+    return `${sec}s`;
+  }
+  function reportQueryString(extra){
+    const f = state.reportFilters;
+    const params = new URLSearchParams();
+    if (f.from) params.set('from', f.from + 'T00:00:00.000Z');
+    if (f.to) params.set('to', f.to + 'T23:59:59.999Z');
+    if (f.device_id) params.set('device_id', f.device_id);
+    if (f.group_id) params.set('group_id', f.group_id);
+    Object.entries(extra||{}).forEach(([k,v])=>params.set(k,v));
+    return params.toString();
+  }
+  async function loadReportData(){
+    state.reportLoading = true; renderView();
+    try{
+      const qs = reportQueryString();
+      const [summary, recent] = await Promise.all([
+        api('/api/reports/plays/summary?'+qs),
+        api('/api/reports/plays?'+qs+'&limit=50'),
+      ]);
+      state.reportData = { ads: summary.ads, totals: summary.totals, plays: recent.plays };
+    }catch(err){ toast(err.message, 'err'); state.reportData = { ads:[], totals:{play_count:0,total_seconds:0}, plays:[] }; }
+    state.reportLoading = false;
+    renderView();
+  }
+  async function downloadReportCsv(){
+    const headers = {};
+    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    try{
+      const res = await fetch(state.base + '/api/reports/plays/export?' + reportQueryString(), { headers });
+      if (!res.ok) throw new Error('export failed (HTTP ' + res.status + ')');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `proof-of-play-${state.reportFilters.from}_to_${state.reportFilters.to}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('CSV downloaded', 'ok');
+    }catch(err){ toast(err.message, 'err'); }
+  }
+
+  function renderReports(){
+    if (!state.reportData && !state.reportLoading){ loadReportData(); }
+    const d = state.reportData;
+    const f = state.reportFilters;
+
+    const filterBar = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+          <div class="field" style="margin-bottom:0;"><label>From</label><input type="date" id="repFrom" value="${esc(f.from)}"></div>
+          <div class="field" style="margin-bottom:0;"><label>To</label><input type="date" id="repTo" value="${esc(f.to)}"></div>
+          <div class="field" style="margin-bottom:0; min-width:170px;"><label>Device</label>
+            <select id="repDevice"><option value="">All devices</option>${state.devices.map(dv=>`<option value="${esc(dv.device_id)}" ${f.device_id===dv.device_id?'selected':''}>${esc(deviceLabel(dv))}</option>`).join('')}</select>
+          </div>
+          <div class="field" style="margin-bottom:0; min-width:150px;"><label>Group</label>
+            <select id="repGroup"><option value="">All groups</option>${state.groups.map(g=>`<option value="${g.id}" ${String(f.group_id)===String(g.id)?'selected':''}>${esc(g.name)}</option>`).join('')}</select>
+          </div>
+          <button class="btn btn-primary" id="repApply">${icon('refresh',13)} Apply</button>
+          <button class="btn" id="repExport" style="margin-left:auto;">${icon('download',13)} Export CSV</button>
+        </div>
+      </div>`;
+
+    if (state.reportLoading || !d){
+      return filterBar + `<div class="card"><div class="card-body"><div class="skel" style="height:220px;"></div></div></div>`;
+    }
+
+    const summaryCards = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">${icon('chart',12)} Total plays</div><div class="stat-value teal">${d.totals.play_count.toLocaleString()}</div><div class="stat-foot">in selected range</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('clock',12)} Total air time</div><div class="stat-value">${fmtDuration(d.totals.total_seconds)}</div><div class="stat-foot">across all screens</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('content',12)} Distinct content</div><div class="stat-value">${d.ads.length}</div><div class="stat-foot">items that played</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('devices',12)} Screens reporting</div><div class="stat-value">${new Set(d.plays.map(p=>p.device_id)).size || (d.ads.reduce((m,a)=>Math.max(m,a.device_count),0))}</div><div class="stat-foot">at least one play logged</div></div>
+      </div>`;
+
+    const perfTable = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h3>Content performance</h3><span class="count">${d.ads.length} item${d.ads.length===1?'':'s'}</span></div>
+        <div class="card-body pad0 table-wrap">
+          <table><thead><tr><th>Content</th><th>Type</th><th class="num">Plays</th><th class="num">Air time</th><th class="num">Screens</th><th>Last played</th></tr></thead>
+          <tbody>${d.ads.map(a=>{
+            const m = MEDIA_META[a.media_type] || MEDIA_META.text;
+            return `<tr>
+              <td class="cell-primary">${esc(a.ad_name)}</td>
+              <td><span class="badge ${m.badge}">${icon(m.icon,11)} ${a.media_type}</span></td>
+              <td class="num mono">${a.play_count.toLocaleString()}</td>
+              <td class="num mono">${fmtDuration(a.total_seconds)}</td>
+              <td class="num mono">${a.device_count}</td>
+              <td class="text-dim">${fmtDate(a.last_played_at)}</td>
+            </tr>`;
+          }).join('') || `<tr><td colspan="6"><div class="empty-state">${icon('chart',28)}<div class="t">No plays in this range</div><div class="d">Once devices start reporting proof-of-play events, they'll show up here.</div></div></td></tr>`}</tbody></table>
+        </div>
+      </div>`;
+
+    const recentTable = `
+      <div class="card">
+        <div class="card-head"><h3>Recent activity</h3><span class="count">last ${d.plays.length}</span></div>
+        <div class="card-body pad0 table-wrap">
+          <table><thead><tr><th>When</th><th>Device</th><th>Content</th><th>Zone</th><th class="num">Duration</th></tr></thead>
+          <tbody>${d.plays.map(p=>`
+            <tr>
+              <td class="text-dim mono" style="font-size:11.5px;">${fmtDate(p.played_at)}</td>
+              <td>${esc(p.device_name || p.device_id)}</td>
+              <td>${esc(p.ad_name)}</td>
+              <td><span class="badge b-gray">${esc(p.zone_key||'—')}</span></td>
+              <td class="num mono">${p.duration_seconds}s</td>
+            </tr>`).join('') || `<tr><td colspan="5"><div class="empty-state" style="padding:28px;">${icon('clock',24)}<div class="t">Nothing yet</div></div></td></tr>`}</tbody></table>
+        </div>
+      </div>`;
+
+    return filterBar + summaryCards + perfTable + recentTable;
+  }
+
+  function wireReportsEvents(){
+    document.getElementById('repApply')?.addEventListener('click', ()=>{
+      state.reportFilters.from = document.getElementById('repFrom').value || state.reportFilters.from;
+      state.reportFilters.to = document.getElementById('repTo').value || state.reportFilters.to;
+      state.reportFilters.device_id = document.getElementById('repDevice').value;
+      state.reportFilters.group_id = document.getElementById('repGroup').value;
+      state.reportData = null;
+      renderView();
+    });
+    document.getElementById('repExport')?.addEventListener('click', downloadReportCsv);
+  }
 
   /* ============================= DEVICE DRAWER ============================= */
   let drawerDeviceId = null;
