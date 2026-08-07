@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
 const { pool } = require("../db/database");
 const { pushCommand } = require("../firebase");
 
@@ -445,6 +446,118 @@ router.post("/:device_id/plays", async (req, res) => {
     res.status(201).json({ ok: true, inserted });
   } catch (err) {
     console.error("submit plays error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/:device_id/screen-share/start
+// Admin-only (gated by requireAdminToken like everything else under /api).
+// Mints a one-time session token, stores it as a 'pending' session, and
+// sends it to the agent inside a normal START_SCREEN_SHARE command over the
+// existing FCM/command-queue pipeline — the agent never gets a token unless
+// the backend chose to send it. The dashboard uses the returned ws_path to
+// open its own admin-role WebSocket connection and subscribe.
+router.post("/:device_id/screen-share/start", async (req, res) => {
+  const deviceId = req.params.device_id;
+
+  try {
+    const deviceResult = await pool.query(
+      `SELECT fcm_token FROM devices WHERE device_id = $1`,
+      [deviceId]
+    );
+    if (deviceResult.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+
+    const sessionToken = crypto.randomBytes(24).toString("hex");
+
+    // Only one live session per device — any previous pending/active one is
+    // superseded so a stale token can't be reused.
+    await pool.query(
+      `UPDATE screen_share_sessions SET status = 'ended', ended_at = NOW()
+       WHERE device_id = $1 AND status IN ('pending', 'active')`,
+      [deviceId]
+    );
+    await pool.query(
+      `INSERT INTO screen_share_sessions (device_id, session_token, status)
+       VALUES ($1, $2, 'pending')`,
+      [deviceId, sessionToken]
+    );
+
+    const commandResult = await pool.query(
+      `INSERT INTO commands (device_id, command_type, payload)
+       VALUES ($1, 'START_SCREEN_SHARE', $2)
+       RETURNING id, device_id, command_type, payload, status, created_at`,
+      [deviceId, JSON.stringify({ session_token: sessionToken })]
+    );
+    const command = commandResult.rows[0];
+    pushCommand(deviceResult.rows[0].fcm_token, command);
+
+    res.status(201).json({
+      ok: true,
+      session_token: sessionToken,
+      ws_path: "/ws/screen-share",
+      command,
+    });
+  } catch (err) {
+    console.error("screen-share start error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/:device_id/screen-share/stop
+// Ends any pending/active session for this device, force-closes the agent's
+// live WebSocket if it's connected right now (no need to wait on FCM), and
+// also queues a normal STOP_SCREEN_SHARE command so the agent tears down
+// its foreground service/notification cleanly even if it reconnects later.
+router.post("/:device_id/screen-share/stop", async (req, res) => {
+  const deviceId = req.params.device_id;
+
+  try {
+    await pool.query(
+      `UPDATE screen_share_sessions SET status = 'ended', ended_at = NOW()
+       WHERE device_id = $1 AND status IN ('pending', 'active')`,
+      [deviceId]
+    );
+
+    req.app.get("screenShare")?.closeDeviceStream(deviceId);
+
+    const deviceResult = await pool.query(
+      `SELECT fcm_token FROM devices WHERE device_id = $1`,
+      [deviceId]
+    );
+    const commandResult = await pool.query(
+      `INSERT INTO commands (device_id, command_type, payload)
+       VALUES ($1, 'STOP_SCREEN_SHARE', NULL)
+       RETURNING id, device_id, command_type, payload, status, created_at`,
+      [deviceId]
+    );
+    const command = commandResult.rows[0];
+    if (deviceResult.rows[0]?.fcm_token) {
+      pushCommand(deviceResult.rows[0].fcm_token, command);
+    }
+
+    res.json({ ok: true, command });
+  } catch (err) {
+    console.error("screen-share stop error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/devices/:device_id/screen-share/status
+// Lets the dashboard show "live" / "not sharing" without opening a socket
+// first — polled when rendering the device grid.
+router.get("/:device_id/screen-share/status", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT status, created_at FROM screen_share_sessions
+       WHERE device_id = $1 AND status IN ('pending', 'active')
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.params.device_id]
+    );
+    res.json({ ok: true, session: result.rows[0] || null });
+  } catch (err) {
+    console.error("screen-share status error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
   }
 });

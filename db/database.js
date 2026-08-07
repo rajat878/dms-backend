@@ -105,6 +105,29 @@ await pool.query(`
       ON commands (device_id, status);
   `);
 
+  // One row per live-screen-view attempt. session_token is the one-time
+  // secret the agent must present on the WebSocket connection — it's handed
+  // to the agent inside the START_SCREEN_SHARE command payload (delivered
+  // over the existing FCM channel), so knowing a device_id alone is never
+  // enough to pull its screen. status moves pending -> active (agent
+  // connected + streaming) -> ended (admin stopped it, agent disconnected,
+  // or it expired).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS screen_share_sessions (
+      id            SERIAL PRIMARY KEY,
+      device_id     TEXT NOT NULL,
+      session_token TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'pending',
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      ended_at      TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_screen_share_device_status
+      ON screen_share_sessions (device_id, status);
+  `);
+
   // APKs stored directly in Postgres as bytea. Render's free web-service
   // filesystem is ephemeral (wiped on redeploy / spin-down from
   // inactivity), so the file bytes can't just live on disk. Postgres is

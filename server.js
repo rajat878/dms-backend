@@ -1,4 +1,5 @@
 require("dotenv").config();
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const { initDb } = require("./db/database");
@@ -10,6 +11,7 @@ const layoutsRouter = require("./routes/layouts");
 const reportsRouter = require("./routes/reports");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
 const { requireAdminToken } = require("./middleware/auth");
+const { attachScreenShareWs } = require("./ws/screenShare");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,10 +62,14 @@ app.get("/api/alerts", async (req, res) => {
   }
 });
 
+const server = http.createServer(app);
+const screenShare = attachScreenShareWs(server);
+app.set("screenShare", screenShare);
+
 async function start() {
   await initDb();
   startAlertMonitor();
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`DMS backend listening on port ${PORT}`);
   });
 }
