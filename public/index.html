@@ -390,6 +390,15 @@
     .screen-fs-body{flex:1 1 auto; position:relative; display:flex; align-items:center; justify-content:center; min-height:0; background:#05070a;}
     .screen-fs-img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;}
     .screen-fs-placeholder{color:var(--text-faint); text-align:center; font-size:13px; padding:16px;}
+    .screen-fs-pointer-layer{position:absolute; inset:0; touch-action:none; cursor:crosshair; display:none;}
+    .screen-fs-pointer-layer.active{display:block;}
+    .screen-fs-controlbar{flex:0 0 auto; display:none; align-items:center; gap:8px; padding:10px 16px; background:var(--surface); border-top:1px solid var(--border); flex-wrap:wrap;}
+    .screen-fs-controlbar.show{display:flex;}
+    .screen-fs-controlbar input[type=text]{flex:1 1 220px; min-width:140px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:8px 10px;}
+    .screen-fs-controltoggle{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); cursor:pointer; user-select:none;}
+    .screen-fs-controltoggle input[type=checkbox]{width:15px; height:15px; accent-color:var(--teal); cursor:pointer;}
+    .screen-fs-controltoggle.disabled{opacity:.45; cursor:not-allowed;}
+    .screen-fs-controltoggle.disabled input{cursor:not-allowed;}
 
     /* ============================= TOASTS ============================= */
     .toast-root{position:fixed; bottom:20px; right:20px; z-index:90; display:flex; flex-direction:column; gap:8px; width:320px; max-width:90vw;}
@@ -513,6 +522,10 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
+      <label class="screen-fs-controltoggle" id="screenFsControlToggleLabel" title="Only available while this device has Remote Control enabled on its own settings">
+        <input type="checkbox" id="screenFsControlToggle" disabled />
+        Remote control
+      </label>
       <button class="btn btn-sm" id="screenFsToggleFullscreen" title="Toggle browser fullscreen">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Fullscreen
@@ -529,6 +542,22 @@
       <div style="margin-top:8px;">Waiting for the device to accept the on-screen prompt…</div>
     </div>
     <img id="screenFsImg" class="screen-fs-img" style="display:none;" />
+    <div id="screenFsPointerLayer" class="screen-fs-pointer-layer"></div>
+  </div>
+  <div class="screen-fs-controlbar" id="screenFsControlBar">
+    <button class="btn btn-sm" id="screenFsBtnBack" title="Back">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back
+    </button>
+    <button class="btn btn-sm" id="screenFsBtnHome" title="Home">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8M5 10v10h14V10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Home
+    </button>
+    <button class="btn btn-sm" id="screenFsBtnRecents" title="Recents">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+      Recents
+    </button>
+    <input type="text" id="screenFsTextInput" placeholder="Type into the focused field on the device, then press Enter…" />
   </div>
 </div>
 
@@ -1168,6 +1197,9 @@
     active: new Map(), // device_id -> 'connecting' | 'live' | 'offline'
     reconnectTimer: null,
     fullscreenDeviceId: null, // device_id currently shown in the big viewer, or null
+    controlAvailable: new Map(), // device_id -> bool, reported by the agent itself
+    controlEnabled: false, // whether the admin has flipped the toggle on for the current fullscreen device
+    pointerDown: null, // {x, y, t} in normalized 0-1 coords, while a drag is in progress
   };
 
   function screenShareWsUrl(){
@@ -1196,7 +1228,12 @@
         setTileFrame(msg.device_id, msg.data);
       } else if (msg.type === 'device_offline') {
         screenShare.active.set(msg.device_id, 'offline');
+        screenShare.controlAvailable.delete(msg.device_id);
         paintTileStatus(msg.device_id);
+        if (screenShare.fullscreenDeviceId === msg.device_id) paintControlAvailability(msg.device_id);
+      } else if (msg.type === 'control_status') {
+        screenShare.controlAvailable.set(msg.device_id, !!msg.available);
+        if (screenShare.fullscreenDeviceId === msg.device_id) paintControlAvailability(msg.device_id);
       }
     };
     ws.onclose = () => {
@@ -1284,6 +1321,10 @@
     }
     paintTileStatus(deviceId);
 
+    screenShare.controlEnabled = false;
+    paintControlAvailability(deviceId);
+    setControlLayerActive(false);
+
     document.getElementById('screenFsRoot').classList.add('show');
     document.body.style.overflow = 'hidden';
   }
@@ -1292,7 +1333,110 @@
     document.getElementById('screenFsRoot').classList.remove('show');
     document.body.style.overflow = '';
     screenShare.fullscreenDeviceId = null;
+    screenShare.controlEnabled = false;
+    screenShare.pointerDown = null;
+    setControlLayerActive(false);
   }
+
+  /* ---- Remote control ---- */
+  // The toggle can only ever turn ON when the agent has already told us
+  // (via control_status) that Accessibility is enabled on that specific
+  // device — there's no "request" flow, because there's nothing an admin
+  // action could do to flip it on remotely by design.
+  function paintControlAvailability(deviceId){
+    const available = screenShare.controlAvailable.get(deviceId) === true;
+    const toggle = document.getElementById('screenFsControlToggle');
+    const label = document.getElementById('screenFsControlToggleLabel');
+    toggle.disabled = !available;
+    toggle.checked = available && screenShare.controlEnabled;
+    label.classList.toggle('disabled', !available);
+    label.title = available
+      ? 'Tap/type on this device while viewing it'
+      : "This device hasn't turned on Remote Control in its own settings";
+    if (!available && screenShare.controlEnabled){
+      screenShare.controlEnabled = false;
+      setControlLayerActive(false);
+    }
+  }
+  function setControlLayerActive(active){
+    document.getElementById('screenFsPointerLayer').classList.toggle('active', active);
+    document.getElementById('screenFsControlBar').classList.toggle('show', active);
+  }
+  document.getElementById('screenFsControlToggle').addEventListener('change', (e) => {
+    const deviceId = screenShare.fullscreenDeviceId;
+    if (!deviceId) return;
+    if (screenShare.controlAvailable.get(deviceId) !== true){ e.target.checked = false; return; }
+    screenShare.controlEnabled = e.target.checked;
+    setControlLayerActive(screenShare.controlEnabled);
+  });
+
+  function sendInputEvent(event){
+    const deviceId = screenShare.fullscreenDeviceId;
+    if (!deviceId || !screenShare.controlEnabled) return;
+    screenShareSend({ type:'input', device_id: deviceId, event });
+  }
+
+  // Converts a pointer event on the streamed <img> into normalized (0-1)
+  // coordinates *relative to the actual image content*, not the element
+  // box — object-fit:contain can letterbox the image inside its box on
+  // either axis, and clicks in the letterbox bars don't correspond to any
+  // point on the real screen.
+  function pointerToNormalized(evt){
+    const img = document.getElementById('screenFsImg');
+    const rect = img.getBoundingClientRect();
+    const naturalW = img.naturalWidth || rect.width;
+    const naturalH = img.naturalHeight || rect.height;
+    const boxRatio = rect.width / rect.height;
+    const imgRatio = naturalW / naturalH;
+
+    let renderW = rect.width, renderH = rect.height, offsetX = 0, offsetY = 0;
+    if (imgRatio > boxRatio){
+      renderH = rect.width / imgRatio;
+      offsetY = (rect.height - renderH) / 2;
+    } else {
+      renderW = rect.height * imgRatio;
+      offsetX = (rect.width - renderW) / 2;
+    }
+
+    const px = evt.clientX - rect.left - offsetX;
+    const py = evt.clientY - rect.top - offsetY;
+    const x = Math.min(Math.max(px / renderW, 0), 1);
+    const y = Math.min(Math.max(py / renderH, 0), 1);
+    return { x, y };
+  }
+
+  const fsPointerLayer = document.getElementById('screenFsPointerLayer');
+  fsPointerLayer.addEventListener('pointerdown', (evt) => {
+    if (!screenShare.controlEnabled) return;
+    const { x, y } = pointerToNormalized(evt);
+    screenShare.pointerDown = { x, y, t: Date.now() };
+  });
+  fsPointerLayer.addEventListener('pointerup', (evt) => {
+    if (!screenShare.controlEnabled || !screenShare.pointerDown) return;
+    const start = screenShare.pointerDown;
+    screenShare.pointerDown = null;
+    const { x, y } = pointerToNormalized(evt);
+    const dx = x - start.x, dy = y - start.y;
+    const movedFar = Math.hypot(dx, dy) > 0.02; // ~2% of screen — beyond this, treat as a swipe not a tap
+    if (movedFar){
+      sendInputEvent({ action:'swipe', x1:start.x, y1:start.y, x2:x, y2:y, duration_ms: Math.min(Math.max(Date.now() - start.t, 50), 3000) });
+    } else {
+      sendInputEvent({ action:'tap', x, y });
+    }
+  });
+  fsPointerLayer.addEventListener('pointerleave', () => { screenShare.pointerDown = null; });
+
+  document.getElementById('screenFsBtnBack').addEventListener('click', () => sendInputEvent({ action:'key', key:'back' }));
+  document.getElementById('screenFsBtnHome').addEventListener('click', () => sendInputEvent({ action:'key', key:'home' }));
+  document.getElementById('screenFsBtnRecents').addEventListener('click', () => sendInputEvent({ action:'key', key:'recents' }));
+  document.getElementById('screenFsTextInput').addEventListener('keydown', (evt) => {
+    if (evt.key !== 'Enter') return;
+    const el = evt.target;
+    const value = el.value;
+    if (!value) return;
+    sendInputEvent({ action:'text', value });
+    el.value = '';
+  });
   async function toggleScreenFullscreen(deviceId){
     if (!screenShare.active.has(deviceId)){
       await toggleScreenShare(deviceId); // starts the share (mirrors the "View" button)
