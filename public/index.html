@@ -336,6 +336,24 @@
     .action-btn .desc{font-size:10.5px; color:var(--text-faint); line-height:1.4;}
     .action-btn.danger svg{color:var(--red);}
 
+    /* content calendar */
+    .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+    .cal-head{margin-bottom:6px;}
+    .cal-daylabel{font-size:11px; font-weight:700; color:var(--text-faint); text-align:center; text-transform:uppercase; letter-spacing:.04em; padding-bottom:2px;}
+    .cal-cell{min-height:88px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:4px;}
+    .cal-cell:hover{border-color:var(--border-strong); background:var(--surface-3);}
+    .cal-cell.out{opacity:.35;}
+    .cal-cell.today{border-color:var(--teal);}
+    .cal-cell.today .cal-daynum{color:var(--teal); font-weight:700;}
+    .cal-daynum{font-size:12px; color:var(--text-dim);}
+    .cal-items{display:flex; flex-direction:column; gap:3px; overflow:hidden;}
+    .cal-chip{font-size:10.5px; padding:2px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; display:block; width:100%;}
+    .cal-more{font-size:10px; color:var(--text-faint); padding:0 2px;}
+    @media (max-width:640px){
+      .cal-cell{min-height:52px;}
+      .cal-daylabel{font-size:9.5px;}
+    }
+
     .inline-form{display:flex; gap:8px; align-items:center;}
     .inline-form input, .inline-form select{flex:1;}
 
@@ -630,7 +648,7 @@
     base: '',
     token: '',
     section: 'overview',
-    devices: [], groups: [], ads: [], layouts: [], layoutTemplates: {}, apks: [], alerts: [],
+    devices: [], groups: [], ads: [], layouts: [], layoutTemplates: {}, apks: [], alerts: [], schedules: [],
     loaded: false,
     search: '',
     deviceSort: { key: 'last_seen', dir: 'desc' },
@@ -854,6 +872,7 @@
     { id:'groups', label:'Groups', icon:'groups', countKey:'groups' },
     { id:'content', label:'Content Library', icon:'content', countKey:'ads' },
     { id:'layouts', label:'Layouts', icon:'layouts', countKey:'layouts' },
+    { id:'calendar', label:'Calendar', icon:'clock', countKey:'schedules' },
     { id:'apps', label:'Applications', icon:'apps', countKey:'apks' },
     { id:'alerts', label:'Alerts', icon:'alerts', countKey:'alerts', alertKey:true },
     { id:'reports', label:'Reports', icon:'chart' },
@@ -862,7 +881,8 @@
     overview:'Fleet health at a glance', devices:'Every screen you manage, live',
     screen_view:'Live view of what each device is showing right now',
     groups:'Organize devices for bulk control', content:'Images, video, web pages & text',
-    layouts:'Multi-zone screen templates', apps:'APKs you can push to any device', alerts:'Devices needing attention',
+    layouts:'Multi-zone screen templates', calendar:'Schedule which layout plays where, and when',
+    apps:'APKs you can push to any device', alerts:'Devices needing attention',
     reports:'Proof-of-play — what ran, where, and for how long',
   };
 
@@ -909,8 +929,8 @@
   async function loadAll(first){
     const dot = document.getElementById('connDot'), label = document.getElementById('connLabel');
     try{
-      const [devicesRes, groupsRes, adsRes, layoutsRes, apksRes, alertsRes] = await Promise.all([
-        api('/api/devices'), api('/api/groups'), api('/api/ads'), api('/api/layouts'), api('/api/apks'), api('/api/alerts'),
+      const [devicesRes, groupsRes, adsRes, layoutsRes, apksRes, alertsRes, schedulesRes] = await Promise.all([
+        api('/api/devices'), api('/api/groups'), api('/api/ads'), api('/api/layouts'), api('/api/apks'), api('/api/alerts'), api('/api/schedules'),
       ]);
       state.devices = devicesRes.devices || [];
       state.groups = groupsRes.groups || [];
@@ -919,6 +939,7 @@
       state.layoutTemplates = layoutsRes.templates || TEMPLATE_ZONES_FALLBACK;
       state.apks = apksRes.apks || [];
       state.alerts = alertsRes.alerts || [];
+      state.schedules = schedulesRes.schedules || [];
       state.loaded = true;
       dot.style.background = 'var(--green)'; label.textContent = 'Connected';
       updateNavCounts();
@@ -932,7 +953,7 @@
   /* ============================= VIEW DISPATCH ============================= */
   function renderView(){
     const v = document.getElementById('view');
-    const renderers = { overview:renderOverview, devices:renderDevices, screen_view:renderScreenView, groups:renderGroups, content:renderContent, layouts:renderLayouts, apps:renderApps, alerts:renderAlerts, reports:renderReports };
+    const renderers = { overview:renderOverview, devices:renderDevices, screen_view:renderScreenView, groups:renderGroups, content:renderContent, layouts:renderLayouts, calendar:renderCalendar, apps:renderApps, alerts:renderAlerts, reports:renderReports };
     v.innerHTML = renderers[state.section] ? renderers[state.section]() : '';
     wireSectionEvents();
   }
@@ -1094,7 +1115,10 @@
                   <td class="num mono" data-open-device="${esc(d.device_id)}">${fmtBytes(d.storage_free)}</td>
                   <td class="mono text-dim" data-open-device="${esc(d.device_id)}">${esc(d.app_version||'—')}</td>
                   <td class="text-dim" data-open-device="${esc(d.device_id)}">${fmtRelTime(d.last_seen)}</td>
-                  <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-ghost" data-open-device="${esc(d.device_id)}">Manage</button></td>
+                  <td onclick="event.stopPropagation()" class="flex gap8" style="justify-content:flex-end;">
+                    <button class="btn btn-sm btn-ghost" data-open-device="${esc(d.device_id)}">Manage</button>
+                    <button class="btn btn-sm btn-ghost" style="color:var(--red);" title="Delete device" data-del-device="${esc(d.device_id)}">${icon('trash',14)}</button>
+                  </td>
                 </tr>`;
               }).join('') || `<tr><td colspan="9"><div class="empty-state">${icon('devices',30)}<div class="t">No devices match</div><div class="d">Try clearing filters or search, or wait for a device to check in.</div></div></td></tr>`}
             </tbody>
@@ -1179,11 +1203,33 @@
     });
     const clearSel = document.getElementById('clearSelection');
     if (clearSel) clearSel.addEventListener('click', ()=>{ state.selectedDeviceIds.clear(); renderView(); });
+    document.querySelectorAll('[data-del-device]').forEach(btn=>btn.addEventListener('click', ()=>{
+      deleteDevice(btn.dataset.delDevice);
+    }));
     renderBulkCommandArea();
   }
 
+  // Permanently removes a device (and its command/heartbeat/screen-share
+  // history) from the backend. Used by both the row-level trash icon and
+  // the drawer's danger-zone button.
+  async function deleteDevice(deviceId){
+    const d = state.devices.find(x=>x.device_id===deviceId);
+    const ok = await confirmAction(
+      `Delete "${esc(deviceLabel(d||{device_id:deviceId}))}"? This permanently removes it and its history. The device itself keeps running but will no longer be able to check in until it's re-registered.`,
+      { confirmLabel:'Delete device' }
+    );
+    if (!ok) return;
+    try{
+      await api('/api/devices/'+encodeURIComponent(deviceId), { method:'DELETE' });
+      toast('Device deleted', 'ok');
+      state.selectedDeviceIds.delete(deviceId);
+      if (drawerDeviceId === deviceId) closeDrawer();
+      await loadAll(false);
+    }catch(err){ toast(err.message, 'err'); }
+  }
+
   function wireSectionEvents(){
-    const wirers = { devices:wireDevicesEvents, screen_view:wireScreenViewEvents, groups:wireGroupsEvents, content:wireContentEvents, layouts:wireLayoutsEvents, apps:wireAppsEvents, alerts:wireAlertsEvents, reports:wireReportsEvents };
+    const wirers = { devices:wireDevicesEvents, screen_view:wireScreenViewEvents, groups:wireGroupsEvents, content:wireContentEvents, layouts:wireLayoutsEvents, calendar:wireCalendarEvents, apps:wireAppsEvents, alerts:wireAlertsEvents, reports:wireReportsEvents };
     if (wirers[state.section]) wirers[state.section]();
   }
 
@@ -1960,6 +2006,242 @@
     });
   }
 
+  /* ============================= CALENDAR / SCHEDULING ============================= */
+  // First-of-month currently shown. A plain Date works fine here since we
+  // only ever read its year/month, never its time-of-day.
+  let calendarViewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const DOW_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const SCHEDULE_COLORS = ['b-teal','b-violet','b-blue','b-amber','b-green'];
+
+  function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function scheduleColor(s){ return SCHEDULE_COLORS[s.id % SCHEDULE_COLORS.length]; }
+  function scheduleTargetLabel(s){ return s.device_id ? (s.device_name || s.device_id) : `${s.group_name || 'Group'} (all devices)`; }
+  function scheduleTimeLabel(s){ return s.start_time ? `${s.start_time.slice(0,5)}–${s.end_time.slice(0,5)}` : 'All day'; }
+  function scheduleDaysLabel(s){ return (s.days_of_week && s.days_of_week.length) ? s.days_of_week.slice().sort().map(d=>DOW_LABELS[d]).join(', ') : 'Every day'; }
+
+  // Whether `s` is active on calendar date `iso` (YYYY-MM-DD) — mirrors the
+  // backend's resolution query but only checks the date-level fields, since
+  // that's all a calendar cell needs; exact time-of-day is shown in the
+  // day-detail modal instead of trying to cram it into a cell.
+  function scheduleActiveOn(s, iso){
+    if (iso < s.start_date.slice(0,10) || iso > s.end_date.slice(0,10)) return false;
+    if (s.days_of_week && s.days_of_week.length){
+      const dow = new Date(iso+'T00:00:00').getDay();
+      if (!s.days_of_week.includes(dow)) return false;
+    }
+    return true;
+  }
+  function schedulesForDate(iso){ return state.schedules.filter(s=>scheduleActiveOn(s, iso)); }
+
+  function renderCalendar(){
+    const year = calendarViewDate.getFullYear(), month = calendarViewDate.getMonth();
+    const monthLabel = calendarViewDate.toLocaleDateString(undefined, { month:'long', year:'numeric' });
+    const firstOfMonth = new Date(year, month, 1);
+    const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+    const todayIso = isoDate(new Date());
+
+    const cells = [];
+    for (let i=0; i<42; i++){
+      const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate()+i);
+      cells.push(d);
+    }
+    // Trim trailing all-outside-month rows (keeps 5 rows for most months instead of always 6).
+    while (cells.length > 35 && cells.slice(-7).every(d=>d.getMonth()!==month)) cells.splice(-7,7);
+
+    return `
+      <div class="view-head">
+        <div><h1 style="font-size:20px;">Calendar</h1><div class="lede">${state.schedules.length} schedule${state.schedules.length===1?'':'s'} configured. Scheduled content overrides a device's default layout while it's active.</div></div>
+        <div class="view-actions"><button class="btn btn-primary" id="newScheduleBtn">${icon('plus')} New schedule</button></div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="flex" style="justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div class="flex gap8">
+              <button class="btn btn-sm btn-icon" id="calPrev" style="transform:scaleX(-1);">${icon('chevRight',13)}</button>
+              <button class="btn btn-sm btn-icon" id="calNext">${icon('chevRight',13)}</button>
+              <button class="btn btn-sm" id="calToday">Today</button>
+            </div>
+            <div style="font-size:15px; font-weight:700;">${monthLabel}</div>
+            <div style="width:1px;"></div>
+          </div>
+          <div class="cal-grid cal-head">
+            ${DOW_LABELS.map(l=>`<div class="cal-daylabel">${l}</div>`).join('')}
+          </div>
+          <div class="cal-grid">
+            ${cells.map(d=>{
+              const iso = isoDate(d);
+              const inMonth = d.getMonth()===month;
+              const items = schedulesForDate(iso);
+              const shown = items.slice(0,3);
+              return `<div class="cal-cell ${inMonth?'':'out'} ${iso===todayIso?'today':''}" data-cal-day="${iso}">
+                <div class="cal-daynum">${d.getDate()}</div>
+                <div class="cal-items">
+                  ${shown.map(s=>`<div class="cal-chip badge ${scheduleColor(s)}" data-cal-chip="${s.id}" title="${esc(s.layout_name)} → ${esc(scheduleTargetLabel(s))}">${esc(s.title || s.layout_name)}</div>`).join('')}
+                  ${items.length>shown.length ? `<div class="cal-more">+${items.length-shown.length} more</div>` : ''}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireCalendarEvents(){
+    document.getElementById('calPrev')?.addEventListener('click', ()=>{ calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth()-1, 1); renderView(); });
+    document.getElementById('calNext')?.addEventListener('click', ()=>{ calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth()+1, 1); renderView(); });
+    document.getElementById('calToday')?.addEventListener('click', ()=>{ const n=new Date(); calendarViewDate = new Date(n.getFullYear(), n.getMonth(), 1); renderView(); });
+    document.getElementById('newScheduleBtn')?.addEventListener('click', ()=>openScheduleModal(null));
+    document.querySelectorAll('[data-cal-day]').forEach(cell=>cell.addEventListener('click', (e)=>{
+      if (e.target.closest('[data-cal-chip]')) return; // handled separately below
+      openDayModal(cell.dataset.calDay);
+    }));
+    document.querySelectorAll('[data-cal-chip]').forEach(chip=>chip.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const s = state.schedules.find(x=>String(x.id)===chip.dataset.calChip);
+      if (s) openScheduleModal(s);
+    }));
+  }
+
+  function openDayModal(iso){
+    const items = schedulesForDate(iso);
+    const label = new Date(iso+'T00:00:00').toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    openModal(`
+      <div class="modal-head"><h3>${label}</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        ${items.length===0 ? `<div class="empty-state">${icon('clock',26)}<div class="t">Nothing scheduled</div><div class="d">No layout is scheduled for this day yet.</div></div>` :
+          `<div class="timeline">${items.map(s=>`
+            <div class="timeline-item">
+              <span class="badge ${scheduleColor(s)}" style="margin-top:1px;">&nbsp;</span>
+              <div class="timeline-body">
+                <div class="timeline-title">${esc(s.title || s.layout_name)}</div>
+                <div class="timeline-meta">${esc(s.layout_name)} → ${esc(scheduleTargetLabel(s))} · ${scheduleTimeLabel(s)} · ${scheduleDaysLabel(s)}</div>
+              </div>
+              <div class="flex gap8">
+                <button class="btn btn-sm btn-icon" data-day-edit="${s.id}">${icon('layouts',13)}</button>
+                <button class="btn btn-sm btn-icon btn-danger" data-day-del="${s.id}">${icon('trash',13)}</button>
+              </div>
+            </div>`).join('')}</div>`}
+      </div>
+      <div class="modal-foot"><button class="btn" data-close-modal>Close</button><button class="btn btn-primary" id="dayAddBtn">${icon('plus',14)} Add schedule</button></div>
+    `, {wide:true});
+    wireModalClose();
+    document.getElementById('dayAddBtn').addEventListener('click', ()=>openScheduleModal(null, iso));
+    document.querySelectorAll('[data-day-edit]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const s = state.schedules.find(x=>String(x.id)===btn.dataset.dayEdit);
+      if (s) openScheduleModal(s);
+    }));
+    document.querySelectorAll('[data-day-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
+      const s = state.schedules.find(x=>String(x.id)===btn.dataset.dayDel);
+      const ok = await confirmAction(`Delete this schedule ("${esc(s.title || s.layout_name)}")?`);
+      if (!ok) return;
+      try{ await api('/api/schedules/'+s.id, { method:'DELETE' }); toast('Schedule deleted', 'ok'); closeModal(); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
+    }));
+  }
+
+  function openScheduleModal(existing, presetDate){
+    const isEdit = !!existing;
+    let targetType = existing ? (existing.device_id ? 'device' : 'group') : 'device';
+    let days = new Set(existing?.days_of_week || []);
+    let allDay = existing ? !existing.start_time : true;
+
+    function targetFieldHtml(){
+      return targetType==='device'
+        ? `<label>Device</label><select id="schTarget">${state.devices.map(d=>`<option value="${esc(d.device_id)}" ${existing?.device_id===d.device_id?'selected':''}>${esc(deviceLabel(d))}</option>`).join('')}</select>`
+        : `<label>Group</label><select id="schTarget">${state.groups.map(g=>`<option value="${g.id}" ${String(existing?.group_id)===String(g.id)?'selected':''}>${esc(g.name)} (${g.device_count})</option>`).join('')}</select>`;
+    }
+
+    openModal(`
+      <div class="modal-head"><h3>${isEdit?'Edit schedule':'New schedule'}</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
+      <div class="modal-body">
+        <div class="field"><label>Title <span class="text-faint">(optional)</span></label><input id="schTitle" value="${esc(existing?.title||'')}" placeholder="e.g. Diwali Sale Promo"></div>
+        <div class="field"><label>Layout</label>
+          <select id="schLayout">${state.layouts.map(l=>`<option value="${l.id}" ${String(existing?.layout_id)===String(l.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
+        </div>
+        <div class="radio-tabs" style="margin-bottom:14px;" id="schTargetTabs">
+          <button class="${targetType==='device'?'active':''}" data-target="device">Single device</button>
+          <button class="${targetType==='group'?'active':''}" data-target="group">Whole group</button>
+        </div>
+        <div class="field" id="schTargetField">${targetFieldHtml()}</div>
+
+        <div class="form-row cols-2">
+          <div class="field"><label>Start date</label><input type="date" id="schStart" value="${esc((existing?.start_date||presetDate||isoDate(new Date())).slice(0,10))}"></div>
+          <div class="field"><label>End date</label><input type="date" id="schEnd" value="${esc((existing?.end_date||presetDate||isoDate(new Date())).slice(0,10))}"></div>
+        </div>
+
+        <div class="field">
+          <label class="flex gap8" style="align-items:center;">
+            <label class="toggle"><input type="checkbox" id="schAllDay" ${allDay?'checked':''}><span class="track"></span></label>
+            <span>All day</span>
+          </label>
+        </div>
+        <div class="form-row cols-2" id="schTimeRow" style="${allDay?'display:none;':''}">
+          <div class="field"><label>Start time</label><input type="time" id="schStartTime" value="${esc((existing?.start_time||'09:00').slice(0,5))}"></div>
+          <div class="field"><label>End time</label><input type="time" id="schEndTime" value="${esc((existing?.end_time||'18:00').slice(0,5))}"></div>
+        </div>
+
+        <div class="field"><label>Repeat on <span class="text-faint">(leave all unchecked for every day)</span></label>
+          <div class="flex gap8" id="schDows" style="flex-wrap:wrap;">
+            ${DOW_LABELS.map((l,i)=>`<button type="button" class="btn btn-sm ${days.has(i)?'btn-primary':''}" data-dow="${i}">${l}</button>`).join('')}
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;"><label>Priority <span class="text-faint">(higher wins if two schedules overlap)</span></label><input type="number" id="schPriority" value="${existing?.priority ?? 0}"></div>
+      </div>
+      <div class="modal-foot">
+        ${isEdit ? `<button class="btn btn-danger" id="schDeleteBtn" style="margin-right:auto;">${icon('trash',13)} Delete</button>` : ''}
+        <button class="btn" data-close-modal>Cancel</button>
+        <button class="btn btn-primary" id="schSaveBtn">${icon('check',14)} ${isEdit?'Save changes':'Create schedule'}</button>
+      </div>
+    `, {wide:true});
+    wireModalClose();
+
+    document.querySelectorAll('#schTargetTabs [data-target]').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('#schTargetTabs [data-target]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      targetType = t.dataset.target;
+      document.getElementById('schTargetField').innerHTML = targetFieldHtml();
+    }));
+    document.getElementById('schAllDay').addEventListener('change', (e)=>{
+      allDay = e.target.checked;
+      document.getElementById('schTimeRow').style.display = allDay ? 'none' : '';
+    });
+    document.querySelectorAll('[data-dow]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const i = Number(btn.dataset.dow);
+      if (days.has(i)) days.delete(i); else days.add(i);
+      btn.classList.toggle('btn-primary', days.has(i));
+    }));
+    document.getElementById('schDeleteBtn')?.addEventListener('click', async ()=>{
+      const ok = await confirmAction(`Delete this schedule ("${esc(existing.title || existing.layout_name)}")?`);
+      if (!ok) return;
+      try{ await api('/api/schedules/'+existing.id, { method:'DELETE' }); toast('Schedule deleted', 'ok'); closeModal(); await loadAll(false); }
+      catch(err){ toast(err.message, 'err'); }
+    });
+    document.getElementById('schSaveBtn').addEventListener('click', async ()=>{
+      const layout_id = Number(document.getElementById('schLayout').value);
+      const target = document.getElementById('schTarget').value;
+      const start_date = document.getElementById('schStart').value;
+      const end_date = document.getElementById('schEnd').value;
+      if (!layout_id){ toast('Choose a layout', 'err'); return; }
+      if (!target){ toast('Choose a target', 'err'); return; }
+      if (!start_date || !end_date){ toast('Set a start and end date', 'err'); return; }
+      if (end_date < start_date){ toast('End date must be on or after start date', 'err'); return; }
+      const body = {
+        layout_id, title: document.getElementById('schTitle').value.trim() || null,
+        start_date, end_date,
+        start_time: allDay ? null : document.getElementById('schStartTime').value,
+        end_time: allDay ? null : document.getElementById('schEndTime').value,
+        days_of_week: [...days],
+        priority: Number(document.getElementById('schPriority').value) || 0,
+      };
+      if (targetType==='device') body.device_id = target; else body.group_id = Number(target);
+      try{
+        if (isEdit) await api('/api/schedules/'+existing.id, { method:'PUT', json:body });
+        else await api('/api/schedules', { method:'POST', json:body });
+        toast(isEdit?'Schedule updated':'Schedule created', 'ok'); closeModal(); await loadAll(false);
+      }catch(err){ toast(err.message, 'err'); }
+    });
+  }
+
   /* ============================= APPLICATIONS (APKs) ============================= */
   function renderApps(){
     return `
@@ -2286,6 +2568,10 @@
         <div><div class="text-faint">Registered</div><div class="mono" style="margin-top:2px;">${fmtDate(d.created_at)}</div></div>
         <div><div class="text-faint">FCM push</div><div class="mono" style="margin-top:2px;">${d.fcm_token?'Registered':'Not registered'}</div></div>
       </div>
+      <hr class="divider">
+      <div class="field"><label style="color:var(--red);">Danger zone</label>
+        <button class="btn btn-sm" style="border-color:var(--red); color:var(--red);" data-del-device-drawer="${esc(d.device_id)}">${icon('trash',13)} Delete this device</button>
+      </div>
     `;
   }
 
@@ -2445,6 +2731,9 @@
         await api(`/api/devices/${encodeURIComponent(d.device_id)}`, { method:'PATCH', json:{ group_id: e.target.value ? Number(e.target.value) : null } });
         toast('Group updated', 'ok'); await loadAll(false);
       }catch(err){ toast(err.message, 'err'); }
+    });
+    document.querySelector('[data-del-device-drawer]')?.addEventListener('click', (e)=>{
+      deleteDevice(e.currentTarget.dataset.delDeviceDrawer);
     });
   }
 

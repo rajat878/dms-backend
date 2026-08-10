@@ -227,21 +227,49 @@ router.get("/:device_id", async (req, res) => {
 // Returns { ok: true, layout: null } if nothing is assigned yet.
 router.get("/:device_id/screen", async (req, res) => {
   try {
-    const assignmentResult = await pool.query(
+    const deviceRow = await pool.query(`SELECT device_id, group_id FROM devices WHERE device_id = $1`, [req.params.device_id]);
+    if (deviceRow.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+    const { group_id } = deviceRow.rows[0];
+
+    // A currently-active calendar schedule overrides the static assignment
+    // below. "Active" means today falls in [start_date, end_date], today's
+    // weekday is in days_of_week (or it's unset = every day), and the
+    // current time is inside [start_time, end_time] (or both are unset =
+    // all day). Device-level schedules win over group-level ones; among
+    // several active at once, higher `priority` wins, then the most
+    // recently created.
+    const scheduleResult = await pool.query(
       `
-      SELECT la.layout_id
-      FROM devices d
-      LEFT JOIN layout_assignments la
-        ON la.device_id = d.device_id
-        OR la.group_id = d.group_id
-      WHERE d.device_id = $1
-      ORDER BY la.device_id NULLS LAST -- device-level assignment wins over the group's
+      SELECT layout_id
+      FROM schedules
+      WHERE (device_id = $1 OR group_id = $2)
+        AND CURRENT_DATE BETWEEN start_date AND end_date
+        AND (days_of_week IS NULL OR EXTRACT(DOW FROM CURRENT_DATE)::int = ANY(days_of_week))
+        AND (start_time IS NULL OR CURRENT_TIME BETWEEN start_time AND end_time)
+      ORDER BY device_id NULLS LAST, priority DESC, created_at DESC
       LIMIT 1
       `,
-      [req.params.device_id]
+      [req.params.device_id, group_id]
     );
 
-    const layoutId = assignmentResult.rows[0]?.layout_id;
+    let layoutId = scheduleResult.rows[0]?.layout_id;
+
+    if (!layoutId) {
+      const assignmentResult = await pool.query(
+        `
+        SELECT la.layout_id
+        FROM layout_assignments la
+        WHERE la.device_id = $1 OR la.group_id = $2
+        ORDER BY la.device_id NULLS LAST -- device-level assignment wins over the group's
+        LIMIT 1
+        `,
+        [req.params.device_id, group_id]
+      );
+      layoutId = assignmentResult.rows[0]?.layout_id;
+    }
+
     if (!layoutId) {
       return res.json({ ok: true, layout: null });
     }
@@ -307,6 +335,48 @@ router.patch("/:device_id", async (req, res) => {
   } catch (err) {
     console.error("update device error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// DELETE /api/devices/:device_id
+// Removes a device entirely (admin-only, gated by requireAdminToken like
+// everything else under /api). play_logs and layout_assignments rows for
+// this device are FK-cascaded automatically; commands/heartbeat_log/
+// screen_share_sessions aren't FK-linked (device_id is a plain TEXT column
+// there, kept that way so history survives a device being re-registered),
+// so we clean those up explicitly in the same transaction. Any live screen
+// share is force-closed first so the agent's socket doesn't linger.
+router.delete("/:device_id", async (req, res) => {
+  const deviceId = req.params.device_id;
+
+  req.app.get("screenShare")?.closeDeviceStream(deviceId);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const deleted = await client.query(
+      `DELETE FROM devices WHERE device_id = $1 RETURNING device_id`,
+      [deviceId]
+    );
+
+    if (deleted.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+
+    await client.query(`DELETE FROM commands WHERE device_id = $1`, [deviceId]);
+    await client.query(`DELETE FROM heartbeat_log WHERE device_id = $1`, [deviceId]);
+    await client.query(`DELETE FROM screen_share_sessions WHERE device_id = $1`, [deviceId]);
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("delete device error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  } finally {
+    client.release();
   }
 });
 

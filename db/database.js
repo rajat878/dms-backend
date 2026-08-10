@@ -275,6 +275,51 @@ await pool.query(`
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_play_logs_ad_played ON play_logs (ad_id, played_at);
   `);
+
+  // ---- Content calendar / scheduling --------------------------------
+  // A schedule says "show this layout on this device/group, on these
+  // dates, optionally only on certain days of the week and/or only within
+  // a daily time window". When one is currently active it overrides the
+  // device's static layout_assignments row (see the resolution query in
+  // routes/devices.js :device_id/screen) — the static assignment remains
+  // as the fallback for whenever no schedule is active.
+  //
+  // days_of_week uses Postgres's EXTRACT(DOW) numbering: 0=Sunday..6=Saturday.
+  // NULL/empty means "every day in the date range". start_time/end_time are
+  // both NULL for an all-day schedule, or both set for a daily window
+  // (e.g. 09:00–18:00) — note this doesn't support windows that cross
+  // midnight (start_time > end_time is treated as never matching).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedules (
+      id            SERIAL PRIMARY KEY,
+      layout_id     INTEGER NOT NULL REFERENCES layouts(id) ON DELETE CASCADE,
+      device_id     TEXT REFERENCES devices(device_id) ON DELETE CASCADE,
+      group_id      INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+      title         TEXT,
+      start_date    DATE NOT NULL,
+      end_date      DATE NOT NULL,
+      start_time    TIME,
+      end_time      TIME,
+      days_of_week  SMALLINT[],
+      priority      INTEGER NOT NULL DEFAULT 0,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      CHECK (
+        (device_id IS NOT NULL AND group_id IS NULL) OR
+        (device_id IS NULL AND group_id IS NOT NULL)
+      ),
+      CHECK (end_date >= start_date),
+      CHECK ((start_time IS NULL) = (end_time IS NULL))
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_schedules_device ON schedules (device_id);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_schedules_group ON schedules (group_id);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_schedules_dates ON schedules (start_date, end_date);
+  `);
 }
 
 module.exports = { pool, initDb };

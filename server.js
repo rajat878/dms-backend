@@ -8,6 +8,7 @@ const groupsRouter = require("./routes/groups");
 const apksRouter = require("./routes/apks");
 const adsRouter = require("./routes/ads");
 const layoutsRouter = require("./routes/layouts");
+const schedulesRouter = require("./routes/schedules");
 const reportsRouter = require("./routes/reports");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
 const { requireAdminToken } = require("./middleware/auth");
@@ -48,6 +49,7 @@ app.use("/api/groups", groupsRouter);
 app.use("/api/apks", apksRouter);
 app.use("/api/ads", adsRouter);
 app.use("/api/layouts", layoutsRouter);
+app.use("/api/schedules", schedulesRouter);
 app.use("/api/reports", reportsRouter);
 
 // GET /api/devices/alerts would collide with the /:device_id route in
