@@ -11,6 +11,7 @@ const layoutsRouter = require("./routes/layouts");
 const schedulesRouter = require("./routes/schedules");
 const reportsRouter = require("./routes/reports");
 const { startAlertMonitor, getAllAlerts } = require("./alerts");
+const { startScheduleRunner } = require("./scheduler");
 const { requireAdminToken } = require("./middleware/auth");
 const { attachScreenShareWs } = require("./ws/screenShare");
 
@@ -71,6 +72,7 @@ app.set("screenShare", screenShare);
 async function start() {
   await initDb();
   startAlertMonitor();
+  startScheduleRunner();
   server.listen(PORT, () => {
     console.log(`DMS backend listening on port ${PORT}`);
   });

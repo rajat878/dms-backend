@@ -320,6 +320,61 @@ await pool.query(`
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_schedules_dates ON schedules (start_date, end_date);
   `);
+
+  // ---- Device-action schedules -----------------------------------------
+  // A schedule can now be one of two kinds:
+  //   'content' — the original behaviour above: show this layout while
+  //               active (a continuous window, resolved live).
+  //   'action'  — fire a single fleet command (reboot, lock, set volume,
+  //               install an app, push an ad, show a message...) once,
+  //               the moment start_time arrives on a matching day. This is
+  //               what makes the calendar "pure DMS": admins can schedule
+  //               literally any remote action on any device/group, not
+  //               just which content plays.
+  // layout_id is only meaningful for 'content'; action_type/action_payload
+  // only for 'action' — schedules_kind_fields_check enforces that split.
+  await pool.query(`ALTER TABLE schedules ALTER COLUMN layout_id DROP NOT NULL;`);
+  await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS schedule_type TEXT NOT NULL DEFAULT 'content';`);
+  await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS action_type TEXT;`);
+  await pool.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS action_payload JSONB;`);
+
+  await pool.query(`ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_schedule_type_check;`);
+  await pool.query(`
+    ALTER TABLE schedules ADD CONSTRAINT schedules_schedule_type_check
+      CHECK (schedule_type IN ('content', 'action'));
+  `);
+  await pool.query(`ALTER TABLE schedules DROP CONSTRAINT IF EXISTS schedules_kind_fields_check;`);
+  await pool.query(`
+    ALTER TABLE schedules ADD CONSTRAINT schedules_kind_fields_check
+      CHECK (
+        (schedule_type = 'content' AND layout_id IS NOT NULL AND action_type IS NULL)
+        OR
+        (schedule_type = 'action' AND layout_id IS NULL AND action_type IS NOT NULL)
+      );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_schedules_type ON schedules (schedule_type);
+  `);
+
+  // One row per calendar day an 'action' schedule has actually fired.
+  // scheduler.js inserts a row here right after queuing the commands for
+  // that fire — UNIQUE(schedule_id, fire_date) guarantees a recurring
+  // action (e.g. "reboot every weekday at 2am") fires at most once per
+  // day even if the check tick runs again, the process restarts, or two
+  // instances briefly overlap during a deploy.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_fires (
+      id            SERIAL PRIMARY KEY,
+      schedule_id   INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
+      fire_date     DATE NOT NULL,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (schedule_id, fire_date)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_schedule_fires_schedule ON schedule_fires (schedule_id);
+  `);
 }
 
 module.exports = { pool, initDb };

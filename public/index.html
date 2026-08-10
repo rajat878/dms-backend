@@ -881,7 +881,7 @@
     overview:'Fleet health at a glance', devices:'Every screen you manage, live',
     screen_view:'Live view of what each device is showing right now',
     groups:'Organize devices for bulk control', content:'Images, video, web pages & text',
-    layouts:'Multi-zone screen templates', calendar:'Schedule which layout plays where, and when',
+    layouts:'Multi-zone screen templates', calendar:'Schedule content or any device action, on any device or group, by date and time',
     apps:'APKs you can push to any device', alerts:'Devices needing attention',
     reports:'Proof-of-play — what ran, where, and for how long',
   };
@@ -2011,13 +2011,67 @@
   // only ever read its year/month, never its time-of-day.
   let calendarViewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const DOW_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const SCHEDULE_COLORS = ['b-teal','b-violet','b-blue','b-amber','b-green'];
+  const SCHEDULE_COLORS = ['b-teal','b-violet','b-blue','b-green'];
+
+  // Every device action the calendar can fire, in the same vocabulary the
+  // Android agent's CommandExecutor understands. `field` describes the one
+  // input the "New schedule" form needs for that action (if any) — its
+  // value is read straight into action_payload under `field.name`.
+  // `describe` renders the friendly chip/timeline label for an existing
+  // schedule of that type (falls back to `label` when omitted).
+  const SCHEDULE_ACTION_TYPES = [
+    { type:'REFRESH_CONTENT', label:'Refresh content', icon:'refresh', desc:'Re-fetch and re-apply the assigned layout' },
+    { type:'CLEAR_AD', label:'Clear pushed ad', icon:'clear', desc:'Remove any full-screen ad overlay' },
+    { type:'SHOW_MESSAGE', label:'Show message', icon:'message', desc:'Flash a text message on screen',
+      field:{ name:'text', label:'Message', type:'text', placeholder:'e.g. Closing in 15 minutes' },
+      describe:(s)=>`Message: "${s.action_payload?.text || ''}"` },
+    { type:'SET_VOLUME', label:'Set volume', icon:'volume', desc:'Set the device volume level',
+      field:{ name:'level', label:'Volume (0–100)', type:'number', placeholder:'0–100' },
+      describe:(s)=>`Set volume to ${s.action_payload?.level ?? '—'}%` },
+    { type:'SET_BRIGHTNESS', label:'Set brightness', icon:'sun', desc:'Set the screen brightness level',
+      field:{ name:'level', label:'Brightness (0–100)', type:'number', placeholder:'0–100' },
+      describe:(s)=>`Set brightness to ${s.action_payload?.level ?? '—'}%` },
+    { type:'SET_MUTE', label:'Mute / unmute', icon:'volume', desc:'Mute or unmute the device',
+      field:{ name:'muted', label:'State', type:'select', options:[{value:'true',label:'Mute'},{value:'false',label:'Unmute'}] },
+      describe:(s)=>s.action_payload?.muted ? 'Mute' : 'Unmute' },
+    { type:'LOCK_DEVICE', label:'Lock screen', icon:'lock', desc:'Lock now (needs Device Admin active)' },
+    { type:'RELEASE_LOCK', label:'Release lock', icon:'unlock', desc:'Undo a Force Lock' },
+    { type:'FORCE_LOCK', label:'Force lock', icon:'lock', desc:'Keep re-locking until released', danger:true },
+    { type:'REBOOT', label:'Reboot device', icon:'power', desc:'Requires Device Owner mode', danger:true },
+    { type:'OPEN_APP', label:'Open app', icon:'apps', desc:'Launch an app by package name',
+      field:{ name:'package_name', label:'Package name', type:'text', placeholder:'e.g. com.android.chrome' },
+      describe:(s)=>`Open ${s.action_payload?.package_name || 'app'}` },
+    { type:'INSTALL_APP', label:'Install app', icon:'install', desc:'Push and install an uploaded APK',
+      field:{ name:'apk_id', label:'APK', type:'apk' },
+      describe:(s)=>`Install ${s.action_apk_name || 'APK'}` },
+    { type:'PUSH_AD', label:'Push ad', icon:'ad', desc:'Show a specific piece of content full-screen',
+      field:{ name:'ad_id', label:'Content', type:'ad' },
+      describe:(s)=>`Push "${s.action_ad_name || 'ad'}"` },
+  ];
+  function actionTypeDef(type){ return SCHEDULE_ACTION_TYPES.find(a=>a.type===type); }
 
   function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-  function scheduleColor(s){ return SCHEDULE_COLORS[s.id % SCHEDULE_COLORS.length]; }
+  // Action schedules always render amber (matches the "action" tab/danger
+  // language used elsewhere) so they read as commands at a glance; content
+  // schedules keep the original per-id color rotation.
+  function scheduleColor(s){ return s.schedule_type==='action' ? 'b-amber' : SCHEDULE_COLORS[s.id % SCHEDULE_COLORS.length]; }
   function scheduleTargetLabel(s){ return s.device_id ? (s.device_name || s.device_id) : `${s.group_name || 'Group'} (all devices)`; }
-  function scheduleTimeLabel(s){ return s.start_time ? `${s.start_time.slice(0,5)}–${s.end_time.slice(0,5)}` : 'All day'; }
+  function scheduleTimeLabel(s){
+    if (s.schedule_type==='action') return `Fires ${(s.start_time||'').slice(0,5)}`;
+    return s.start_time ? `${s.start_time.slice(0,5)}–${s.end_time.slice(0,5)}` : 'All day';
+  }
   function scheduleDaysLabel(s){ return (s.days_of_week && s.days_of_week.length) ? s.days_of_week.slice().sort().map(d=>DOW_LABELS[d]).join(', ') : 'Every day'; }
+  // Friendly one-line label for a chip/timeline row — an explicit title
+  // wins, otherwise content schedules fall back to the layout name and
+  // action schedules describe what they'll actually do.
+  function scheduleTitleLabel(s){
+    if (s.title) return s.title;
+    if (s.schedule_type==='action'){
+      const def = actionTypeDef(s.action_type);
+      return def ? (def.describe ? def.describe(s) : def.label) : (s.action_type || 'Action');
+    }
+    return s.layout_name || 'Content';
+  }
 
   // Whether `s` is active on calendar date `iso` (YYYY-MM-DD) — mirrors the
   // backend's resolution query but only checks the date-level fields, since
@@ -2050,7 +2104,7 @@
 
     return `
       <div class="view-head">
-        <div><h1 style="font-size:20px;">Calendar</h1><div class="lede">${state.schedules.length} schedule${state.schedules.length===1?'':'s'} configured. Scheduled content overrides a device's default layout while it's active.</div></div>
+        <div><h1 style="font-size:20px;">Calendar</h1><div class="lede">${state.schedules.length} schedule${state.schedules.length===1?'':'s'} configured. Schedule content (overrides a device's default layout while active) or a one-off device action — reboot, lock, install an app, push an ad, and more — on any device or group.</div></div>
         <div class="view-actions"><button class="btn btn-primary" id="newScheduleBtn">${icon('plus')} New schedule</button></div>
       </div>
       <div class="card">
@@ -2076,7 +2130,7 @@
               return `<div class="cal-cell ${inMonth?'':'out'} ${iso===todayIso?'today':''}" data-cal-day="${iso}">
                 <div class="cal-daynum">${d.getDate()}</div>
                 <div class="cal-items">
-                  ${shown.map(s=>`<div class="cal-chip badge ${scheduleColor(s)}" data-cal-chip="${s.id}" title="${esc(s.layout_name)} → ${esc(scheduleTargetLabel(s))}">${esc(s.title || s.layout_name)}</div>`).join('')}
+                  ${shown.map(s=>`<div class="cal-chip badge ${scheduleColor(s)}" data-cal-chip="${s.id}" title="${esc(scheduleTitleLabel(s))} → ${esc(scheduleTargetLabel(s))}">${s.schedule_type==='action'?icon('spark',10):''}${esc(scheduleTitleLabel(s))}</div>`).join('')}
                   ${items.length>shown.length ? `<div class="cal-more">+${items.length-shown.length} more</div>` : ''}
                 </div>
               </div>`;
@@ -2109,13 +2163,13 @@
     openModal(`
       <div class="modal-head"><h3>${label}</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
       <div class="modal-body">
-        ${items.length===0 ? `<div class="empty-state">${icon('clock',26)}<div class="t">Nothing scheduled</div><div class="d">No layout is scheduled for this day yet.</div></div>` :
+        ${items.length===0 ? `<div class="empty-state">${icon('clock',26)}<div class="t">Nothing scheduled</div><div class="d">No content or device action is scheduled for this day yet.</div></div>` :
           `<div class="timeline">${items.map(s=>`
             <div class="timeline-item">
-              <span class="badge ${scheduleColor(s)}" style="margin-top:1px;">&nbsp;</span>
+              <span class="badge ${scheduleColor(s)}" style="margin-top:1px;">${s.schedule_type==='action'?icon('spark',11):'&nbsp;'}</span>
               <div class="timeline-body">
-                <div class="timeline-title">${esc(s.title || s.layout_name)}</div>
-                <div class="timeline-meta">${esc(s.layout_name)} → ${esc(scheduleTargetLabel(s))} · ${scheduleTimeLabel(s)} · ${scheduleDaysLabel(s)}</div>
+                <div class="timeline-title">${esc(scheduleTitleLabel(s))}</div>
+                <div class="timeline-meta">${s.schedule_type==='action' ? 'Device action' : esc(s.layout_name)} → ${esc(scheduleTargetLabel(s))} · ${scheduleTimeLabel(s)} · ${scheduleDaysLabel(s)}</div>
               </div>
               <div class="flex gap8">
                 <button class="btn btn-sm btn-icon" data-day-edit="${s.id}">${icon('layouts',13)}</button>
@@ -2133,7 +2187,7 @@
     }));
     document.querySelectorAll('[data-day-del]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const s = state.schedules.find(x=>String(x.id)===btn.dataset.dayDel);
-      const ok = await confirmAction(`Delete this schedule ("${esc(s.title || s.layout_name)}")?`);
+      const ok = await confirmAction(`Delete this schedule ("${esc(scheduleTitleLabel(s))}")?`);
       if (!ok) return;
       try{ await api('/api/schedules/'+s.id, { method:'DELETE' }); toast('Schedule deleted', 'ok'); closeModal(); await loadAll(false); }
       catch(err){ toast(err.message, 'err'); }
@@ -2142,9 +2196,11 @@
 
   function openScheduleModal(existing, presetDate){
     const isEdit = !!existing;
+    let kind = existing?.schedule_type || 'content';
     let targetType = existing ? (existing.device_id ? 'device' : 'group') : 'device';
     let days = new Set(existing?.days_of_week || []);
     let allDay = existing ? !existing.start_time : true;
+    let actionType = existing?.action_type || SCHEDULE_ACTION_TYPES[0].type;
 
     function targetFieldHtml(){
       return targetType==='device'
@@ -2152,13 +2208,68 @@
         : `<label>Group</label><select id="schTarget">${state.groups.map(g=>`<option value="${g.id}" ${String(existing?.group_id)===String(g.id)?'selected':''}>${esc(g.name)} (${g.device_count})</option>`).join('')}</select>`;
     }
 
+    // The one input an action's payload needs, if any — text/number/select
+    // are plain inputs; 'apk'/'ad' pick from what's already been uploaded
+    // to the Content Library / Applications sections.
+    function actionFieldHtml(){
+      const def = actionTypeDef(actionType);
+      if (!def) return '';
+      if (!def.field) return `<div class="text-faint" style="font-size:12px; padding:2px 0 4px;">${esc(def.desc)}</div>`;
+      const f = def.field;
+      const existingVal = existing?.action_type===actionType ? existing?.action_payload?.[f.name] : undefined;
+      if (f.type==='apk'){
+        if (state.apks.length===0) return `<div class="field"><label>${esc(f.label)}</label><div class="text-faint" style="font-size:12px;">No APKs uploaded yet — upload one under Applications first.</div></div>`;
+        return `<div class="field"><label>${esc(f.label)}</label><select id="schActionField">${state.apks.map(a=>`<option value="${a.id}" ${Number(existingVal)===a.id?'selected':''}>${esc(a.filename)}</option>`).join('')}</select></div>`;
+      }
+      if (f.type==='ad'){
+        if (state.ads.length===0) return `<div class="field"><label>${esc(f.label)}</label><div class="text-faint" style="font-size:12px;">No content uploaded yet — add some under Content Library first.</div></div>`;
+        return `<div class="field"><label>${esc(f.label)}</label><select id="schActionField">${state.ads.map(a=>`<option value="${a.id}" ${Number(existingVal)===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>`;
+      }
+      if (f.type==='select'){
+        return `<div class="field"><label>${esc(f.label)}</label><select id="schActionField">${f.options.map(o=>`<option value="${o.value}" ${String(existingVal)===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select></div>`;
+      }
+      return `<div class="field"><label>${esc(f.label)}</label><input id="schActionField" type="${f.type}" placeholder="${esc(f.placeholder||'')}" value="${existingVal!=null?esc(String(existingVal)):''}"></div>`;
+    }
+
+    function kindFieldsHtml(){
+      if (kind==='content'){
+        return `<div class="field"><label>Layout</label>
+          <select id="schLayout">${state.layouts.map(l=>`<option value="${l.id}" ${String(existing?.layout_id)===String(l.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
+        </div>`;
+      }
+      return `<div class="field"><label>Action</label>
+          <select id="schActionType">${SCHEDULE_ACTION_TYPES.map(a=>`<option value="${a.type}" ${actionType===a.type?'selected':''}>${esc(a.label)}</option>`).join('')}</select>
+        </div>
+        <div id="schActionField-wrap">${actionFieldHtml()}</div>`;
+    }
+
+    function timeFieldsHtml(){
+      if (kind==='content'){
+        return `
+          <div class="field">
+            <label class="flex gap8" style="align-items:center;">
+              <label class="toggle"><input type="checkbox" id="schAllDay" ${allDay?'checked':''}><span class="track"></span></label>
+              <span>All day</span>
+            </label>
+          </div>
+          <div class="form-row cols-2" id="schTimeRow" style="${allDay?'display:none;':''}">
+            <div class="field"><label>Start time</label><input type="time" id="schStartTime" value="${esc((existing?.start_time||'09:00').slice(0,5))}"></div>
+            <div class="field"><label>End time</label><input type="time" id="schEndTime" value="${esc((existing?.end_time||'18:00').slice(0,5))}"></div>
+          </div>`;
+      }
+      return `<div class="field"><label>Fires at <span class="text-faint">(on each matching day)</span></label>
+        <input type="time" id="schFireTime" value="${esc((existing?.start_time||'09:00').slice(0,5))}"></div>`;
+    }
+
     openModal(`
       <div class="modal-head"><h3>${isEdit?'Edit schedule':'New schedule'}</h3><button class="btn btn-icon btn-ghost" data-close-modal>${icon('x',15)}</button></div>
       <div class="modal-body">
-        <div class="field"><label>Title <span class="text-faint">(optional)</span></label><input id="schTitle" value="${esc(existing?.title||'')}" placeholder="e.g. Diwali Sale Promo"></div>
-        <div class="field"><label>Layout</label>
-          <select id="schLayout">${state.layouts.map(l=>`<option value="${l.id}" ${String(existing?.layout_id)===String(l.id)?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
+        <div class="radio-tabs" style="margin-bottom:14px;" id="schKindTabs">
+          <button class="${kind==='content'?'active':''}" data-kind="content">${icon('content',13)} Content</button>
+          <button class="${kind==='action'?'active':''}" data-kind="action">${icon('spark',13)} Device action</button>
         </div>
+        <div class="field"><label>Title <span class="text-faint">(optional)</span></label><input id="schTitle" value="${esc(existing?.title||'')}" placeholder="e.g. Diwali Sale Promo"></div>
+        <div id="schKindFields">${kindFieldsHtml()}</div>
         <div class="radio-tabs" style="margin-bottom:14px;" id="schTargetTabs">
           <button class="${targetType==='device'?'active':''}" data-target="device">Single device</button>
           <button class="${targetType==='group'?'active':''}" data-target="group">Whole group</button>
@@ -2170,23 +2281,14 @@
           <div class="field"><label>End date</label><input type="date" id="schEnd" value="${esc((existing?.end_date||presetDate||isoDate(new Date())).slice(0,10))}"></div>
         </div>
 
-        <div class="field">
-          <label class="flex gap8" style="align-items:center;">
-            <label class="toggle"><input type="checkbox" id="schAllDay" ${allDay?'checked':''}><span class="track"></span></label>
-            <span>All day</span>
-          </label>
-        </div>
-        <div class="form-row cols-2" id="schTimeRow" style="${allDay?'display:none;':''}">
-          <div class="field"><label>Start time</label><input type="time" id="schStartTime" value="${esc((existing?.start_time||'09:00').slice(0,5))}"></div>
-          <div class="field"><label>End time</label><input type="time" id="schEndTime" value="${esc((existing?.end_time||'18:00').slice(0,5))}"></div>
-        </div>
+        <div id="schTimeFields">${timeFieldsHtml()}</div>
 
-        <div class="field"><label>Repeat on <span class="text-faint">(leave all unchecked for every day)</span></label>
+        <div class="field"><label>Repeat on <span class="text-faint">(leave all unchecked for every day in range)</span></label>
           <div class="flex gap8" id="schDows" style="flex-wrap:wrap;">
             ${DOW_LABELS.map((l,i)=>`<button type="button" class="btn btn-sm ${days.has(i)?'btn-primary':''}" data-dow="${i}">${l}</button>`).join('')}
           </div>
         </div>
-        <div class="field" style="margin-bottom:0;"><label>Priority <span class="text-faint">(higher wins if two schedules overlap)</span></label><input type="number" id="schPriority" value="${existing?.priority ?? 0}"></div>
+        <div class="field" id="schPriorityField" style="margin-bottom:0; ${kind==='action'?'display:none;':''}"><label>Priority <span class="text-faint">(higher wins if two content schedules overlap)</span></label><input type="number" id="schPriority" value="${existing?.priority ?? 0}"></div>
       </div>
       <div class="modal-foot">
         ${isEdit ? `<button class="btn btn-danger" id="schDeleteBtn" style="margin-right:auto;">${icon('trash',13)} Delete</button>` : ''}
@@ -2196,44 +2298,91 @@
     `, {wide:true});
     wireModalClose();
 
+    function wireTimeFields(){
+      if (kind==='content'){
+        document.getElementById('schAllDay').addEventListener('change', (e)=>{
+          allDay = e.target.checked;
+          document.getElementById('schTimeRow').style.display = allDay ? 'none' : '';
+        });
+      }
+    }
+    function wireActionFieldSelect(){
+      document.getElementById('schActionType')?.addEventListener('change', (e)=>{
+        actionType = e.target.value;
+        document.getElementById('schActionField-wrap').innerHTML = actionFieldHtml();
+      });
+    }
+    wireTimeFields();
+    wireActionFieldSelect();
+
+    document.querySelectorAll('#schKindTabs [data-kind]').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('#schKindTabs [data-kind]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      kind = t.dataset.kind;
+      document.getElementById('schKindFields').innerHTML = kindFieldsHtml();
+      document.getElementById('schTimeFields').innerHTML = timeFieldsHtml();
+      document.getElementById('schPriorityField').style.display = kind==='action' ? 'none' : '';
+      wireTimeFields();
+      wireActionFieldSelect();
+    }));
     document.querySelectorAll('#schTargetTabs [data-target]').forEach(t=>t.addEventListener('click', ()=>{
       document.querySelectorAll('#schTargetTabs [data-target]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
       targetType = t.dataset.target;
       document.getElementById('schTargetField').innerHTML = targetFieldHtml();
     }));
-    document.getElementById('schAllDay').addEventListener('change', (e)=>{
-      allDay = e.target.checked;
-      document.getElementById('schTimeRow').style.display = allDay ? 'none' : '';
-    });
     document.querySelectorAll('[data-dow]').forEach(btn=>btn.addEventListener('click', ()=>{
       const i = Number(btn.dataset.dow);
       if (days.has(i)) days.delete(i); else days.add(i);
       btn.classList.toggle('btn-primary', days.has(i));
     }));
     document.getElementById('schDeleteBtn')?.addEventListener('click', async ()=>{
-      const ok = await confirmAction(`Delete this schedule ("${esc(existing.title || existing.layout_name)}")?`);
+      const ok = await confirmAction(`Delete this schedule ("${esc(scheduleTitleLabel(existing))}")?`);
       if (!ok) return;
       try{ await api('/api/schedules/'+existing.id, { method:'DELETE' }); toast('Schedule deleted', 'ok'); closeModal(); await loadAll(false); }
       catch(err){ toast(err.message, 'err'); }
     });
     document.getElementById('schSaveBtn').addEventListener('click', async ()=>{
-      const layout_id = Number(document.getElementById('schLayout').value);
       const target = document.getElementById('schTarget').value;
       const start_date = document.getElementById('schStart').value;
       const end_date = document.getElementById('schEnd').value;
-      if (!layout_id){ toast('Choose a layout', 'err'); return; }
       if (!target){ toast('Choose a target', 'err'); return; }
       if (!start_date || !end_date){ toast('Set a start and end date', 'err'); return; }
       if (end_date < start_date){ toast('End date must be on or after start date', 'err'); return; }
+
       const body = {
-        layout_id, title: document.getElementById('schTitle').value.trim() || null,
+        schedule_type: kind,
+        title: document.getElementById('schTitle').value.trim() || null,
         start_date, end_date,
-        start_time: allDay ? null : document.getElementById('schStartTime').value,
-        end_time: allDay ? null : document.getElementById('schEndTime').value,
         days_of_week: [...days],
-        priority: Number(document.getElementById('schPriority').value) || 0,
       };
       if (targetType==='device') body.device_id = target; else body.group_id = Number(target);
+
+      if (kind==='content'){
+        const layout_id = Number(document.getElementById('schLayout').value);
+        if (!layout_id){ toast('Choose a layout', 'err'); return; }
+        body.layout_id = layout_id;
+        body.start_time = allDay ? null : document.getElementById('schStartTime').value;
+        body.end_time = allDay ? null : document.getElementById('schEndTime').value;
+        body.priority = Number(document.getElementById('schPriority').value) || 0;
+      } else {
+        const fireTime = document.getElementById('schFireTime').value;
+        if (!fireTime){ toast('Set a fire time', 'err'); return; }
+        body.action_type = actionType;
+        body.start_time = fireTime;
+        const def = actionTypeDef(actionType);
+        if (def?.field){
+          const el = document.getElementById('schActionField');
+          if (!el){ toast(`Set up "${def.label}" first`, 'err'); return; }
+          const raw = el.value;
+          if (raw==='' || raw==null){ toast(`${def.field.label} is required`, 'err'); return; }
+          let val;
+          if (def.field.type==='number') val = Number(raw);
+          else if (def.field.type==='select') val = raw==='true';
+          else if (def.field.type==='apk' || def.field.type==='ad') val = Number(raw);
+          else val = raw.trim();
+          body.action_payload = { [def.field.name]: val };
+        }
+      }
+
       try{
         if (isEdit) await api('/api/schedules/'+existing.id, { method:'PUT', json:body });
         else await api('/api/schedules', { method:'POST', json:body });
