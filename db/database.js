@@ -17,9 +17,32 @@ if (!connectionString) {
 // at localhost.
 const isLocal = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
 
+// The Calendar feature (scheduler.js, routes/Layoutresolver.js) compares
+// admin-entered wall-clock times (e.g. "15:00" from the dashboard's
+// <input type="time">) against CURRENT_TIME / CURRENT_DATE / LOCALTIME.
+// Those Postgres functions are evaluated in the DB SESSION's timezone —
+// which defaults to UTC on Render and most managed Postgres — NOT the
+// admin's local timezone. Without pinning it, a schedule set for "15:00"
+// by an admin in IST actually fires at 15:00 UTC (20:30 IST), which looks
+// like "the schedule isn't firing at the right time" even though the
+// dashboard displays the time you entered correctly.
+//
+// Set SCHEDULE_TZ to an IANA timezone name (e.g. "Asia/Kolkata") in your
+// .env / Render environment to make every session evaluate schedules in
+// that timezone instead.
+const SCHEDULE_TZ = process.env.SCHEDULE_TZ || "UTC";
+
 const pool = new Pool({
   connectionString,
   ssl: isLocal ? false : { rejectUnauthorized: false },
+});
+
+// Applied to every new connection the pool opens, so scheduler.js's
+// background timer and every request handler agree on "now".
+pool.on("connect", (client) => {
+  client.query(`SET TIME ZONE '${SCHEDULE_TZ}'`).catch((err) => {
+    console.error(`failed to set session timezone to ${SCHEDULE_TZ}:`, err.message);
+  });
 });
 
 // Creates the schema if it doesn't exist yet. Safe to call on every boot.
