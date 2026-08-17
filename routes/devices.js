@@ -614,6 +614,116 @@ router.post("/:device_id/screen-share/stop", async (req, res) => {
   }
 });
 
+// POST /api/devices/:device_id/stop-all
+// The admin's "panic button" for a single device. Two things happen:
+//   1. Any of this device's commands still sitting as 'pending' (queued but
+//      not yet delivered — either never reached FCM, or the device hasn't
+//      had its next heartbeat yet) are marked 'cancelled' so they never
+//      execute late/out of order once the device does come back.
+//   2. A STOP_ALL command is queued and pushed right now — the agent
+//      interprets it as "undo everything currently in effect" (clear any
+//      pushed ad, dismiss any message, release any lock, end any screen
+//      share). See CommandExecutor.kt's stopAll().
+// Already-'delivered' commands can't be un-sent, but STOP_ALL reverses
+// their visible effects anyway, so nothing is left hanging either way.
+router.post("/:device_id/stop-all", async (req, res) => {
+  const deviceId = req.params.device_id;
+
+  try {
+    const deviceResult = await pool.query(
+      `SELECT device_id, fcm_token FROM devices WHERE device_id = $1`,
+      [deviceId]
+    );
+    if (deviceResult.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "device not found" });
+    }
+
+    const cancelled = await pool.query(
+      `UPDATE commands SET status = 'cancelled' WHERE device_id = $1 AND status = 'pending' RETURNING id`,
+      [deviceId]
+    );
+
+    // Also end any live/pending screen share right away rather than
+    // waiting on the agent to receive and act on STOP_ALL.
+    await pool.query(
+      `UPDATE screen_share_sessions SET status = 'ended', ended_at = NOW()
+       WHERE device_id = $1 AND status IN ('pending', 'active')`,
+      [deviceId]
+    );
+    req.app.get("screenShare")?.closeDeviceStream(deviceId);
+
+    const commandResult = await pool.query(
+      `INSERT INTO commands (device_id, command_type, payload)
+       VALUES ($1, 'STOP_ALL', NULL)
+       RETURNING id, device_id, command_type, payload, status, created_at`,
+      [deviceId]
+    );
+    const command = commandResult.rows[0];
+    pushCommand(deviceResult.rows[0].fcm_token, command);
+
+    res.status(201).json({ ok: true, cancelled_pending: cancelled.rows.length, command });
+  } catch (err) {
+    console.error("stop-all error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// POST /api/devices/stop-all
+// Fleet-wide panic button — same as above but for every device (or, if
+// device_ids is given, a specific subset — used by the dashboard's
+// "stop all in this group" action). Loops the single-device logic per
+// device so one bad/offline device can't block the rest.
+router.post("/stop-all", async (req, res) => {
+  const { device_ids } = req.body || {};
+
+  try {
+    const devicesResult = Array.isArray(device_ids) && device_ids.length
+      ? await pool.query(`SELECT device_id, fcm_token FROM devices WHERE device_id = ANY($1::text[])`, [device_ids])
+      : await pool.query(`SELECT device_id, fcm_token FROM devices`);
+
+    if (devicesResult.rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "no devices found" });
+    }
+
+    let totalCancelled = 0;
+    const commands = [];
+    for (const device of devicesResult.rows) {
+      const cancelled = await pool.query(
+        `UPDATE commands SET status = 'cancelled' WHERE device_id = $1 AND status = 'pending' RETURNING id`,
+        [device.device_id]
+      );
+      totalCancelled += cancelled.rows.length;
+
+      await pool.query(
+        `UPDATE screen_share_sessions SET status = 'ended', ended_at = NOW()
+         WHERE device_id = $1 AND status IN ('pending', 'active')`,
+        [device.device_id]
+      );
+      req.app.get("screenShare")?.closeDeviceStream(device.device_id);
+
+      const commandResult = await pool.query(
+        `INSERT INTO commands (device_id, command_type, payload)
+         VALUES ($1, 'STOP_ALL', NULL)
+         RETURNING id, device_id, command_type, payload, status, created_at`,
+        [device.device_id]
+      );
+      const command = commandResult.rows[0];
+      commands.push(command);
+      pushCommand(device.fcm_token, command);
+    }
+
+    res.status(201).json({
+      ok: true,
+      stopped_devices: commands.length,
+      cancelled_pending: totalCancelled,
+      commands,
+    });
+  } catch (err) {
+    console.error("fleet stop-all error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 // GET /api/devices/:device_id/screen-share/status
 // Lets the dashboard show "live" / "not sharing" without opening a socket
 // first — polled when rendering the device grid.

@@ -1076,6 +1076,7 @@
             <option value="all" ${deviceFilterGroup==='all'?'selected':''}>All groups</option>
             ${groupOptions}
           </select>
+          <button class="btn btn-sm" style="border-color:var(--red); color:var(--red);" id="fleetStopAllBtn" title="Cancel every queued action and undo anything currently in effect (pushed ads, locks, screen share) on every device">${icon('power',13)} Stop all devices</button>
         </div>
       </div>
 
@@ -1084,6 +1085,7 @@
         <div class="card-body" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <span class="badge b-teal">${selCount} selected</span>
           <div id="bulkCommandArea" style="flex:1; min-width:260px;"></div>
+          <button class="btn btn-sm" style="border-color:var(--red); color:var(--red);" id="selectionStopAllBtn">${icon('power',13)} Stop these</button>
           <button class="btn btn-sm btn-ghost" id="clearSelection">Clear</button>
         </div>
       </div>` : ''}
@@ -1206,7 +1208,28 @@
     document.querySelectorAll('[data-del-device]').forEach(btn=>btn.addEventListener('click', ()=>{
       deleteDevice(btn.dataset.delDevice);
     }));
+    document.getElementById('fleetStopAllBtn')?.addEventListener('click', ()=>stopAllDevices());
+    document.getElementById('selectionStopAllBtn')?.addEventListener('click', ()=>stopAllDevices([...state.selectedDeviceIds]));
     renderBulkCommandArea();
+  }
+
+  // The admin "panic button": cancels every not-yet-delivered queued
+  // command and pushes STOP_ALL (clear pushed ad, dismiss message, release
+  // any lock, end screen share — see CommandExecutor.kt) to the given
+  // devices, or to the whole fleet if deviceIds is omitted.
+  async function stopAllDevices(deviceIds){
+    const scope = deviceIds ? `${deviceIds.length} selected device(s)` : `ALL ${state.devices.length} device(s)`;
+    const ok = await confirmAction(
+      `Stop everything on ${scope}? This cancels any queued/undelivered actions and immediately clears pushed ads, releases locks, and ends screen shares on ${deviceIds ? 'these devices' : 'every device'}.`,
+      { confirmLabel:'Stop all' }
+    );
+    if (!ok) return;
+    try{
+      const res = await api('/api/devices/stop-all', { method:'POST', json: deviceIds ? { device_ids: deviceIds } : {} });
+      toast(`Stopped ${res.stopped_devices} device(s) · ${res.cancelled_pending} queued action(s) cancelled`, 'ok');
+      if (deviceIds) state.selectedDeviceIds.clear();
+      await loadAll(false);
+    }catch(err){ toast(err.message, 'err'); }
   }
 
   // Permanently removes a device (and its command/heartbeat/screen-share
@@ -2734,6 +2757,9 @@
   ];
   function drawerControlHtml(d){
     return `
+      <button class="btn btn-sm" style="border-color:var(--red); color:var(--red); width:100%; margin-bottom:14px; justify-content:center;" data-quick-stop-all>
+        ${icon('power',13)} Stop all actions on this device
+      </button>
       <div class="action-grid" style="margin-bottom:18px;">
         ${CONTROL_ACTIONS.map(a=>`
           <div class="action-btn ${a.danger?'danger':''}" data-quick-cmd="${a.type}">
@@ -2833,6 +2859,20 @@
   }
 
   function wireDrawerEvents(d){
+    document.querySelector('[data-quick-stop-all]')?.addEventListener('click', async ()=>{
+      const ok = await confirmAction(
+        `Stop everything on ${deviceLabel(d)}? This cancels any queued/undelivered actions and immediately clears any pushed ad, releases any lock, and ends any screen share.`,
+        { confirmLabel:'Stop all' }
+      );
+      if (!ok) return;
+      try{
+        const res = await api(`/api/devices/${encodeURIComponent(d.device_id)}/stop-all`, { method:'POST' });
+        toast(`Stopped · ${res.cancelled_pending} queued action(s) cancelled`, 'ok');
+        if (drawerDeviceId === d.device_id && drawerTab === 'history'){
+          drawerData = await api(`/api/devices/${encodeURIComponent(d.device_id)}`); paintDrawer();
+        }
+      }catch(err){ toast(err.message, 'err'); }
+    });
     document.querySelectorAll('[data-quick-cmd]').forEach(btn=>btn.addEventListener('click', async ()=>{
       const type = btn.dataset.quickCmd;
       if (['REBOOT','FORCE_LOCK'].includes(type)){
