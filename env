@@ -1,0 +1,33 @@
+# Local/production config for dms-backend.
+# Place this file at dms-backend/dms-backend/.env (same folder as .env.example).
+
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dms_test
+
+# Shared secret the admin dashboard sends as `Authorization: Bearer <token>`.
+# A random one has been generated for you below — you can keep it or replace it.
+ADMIN_TOKEN=a0be9c82ec94ba16a5690643d734ff9cef17c4b6432d3eb1
+
+# Optional: Slack-compatible incoming webhook URL for offline/battery/storage alerts.
+# ALERT_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
+
+# Optional: alert thresholds (defaults shown)
+# OFFLINE_THRESHOLD_MINUTES=20
+# LOW_BATTERY_PCT=20
+# LOW_STORAGE_BYTES=1073741824
+# ALERT_CHECK_INTERVAL_MS=300000
+
+# Optional: base URL for APK/ad download links used by scheduled
+# "Install app" / "Push ad" actions (scheduler.js has no incoming request
+# to read a host from). Set this to your real backend URL, e.g.:
+# PUBLIC_BASE_URL=https://your-backend.onrender.com
+
+# Optional: how often (ms) the calendar's background scheduler checks for
+# due device-action schedules. Default 1 minute.
+# SCHEDULE_CHECK_INTERVAL_MS=60000
+
+# FIX for calendar time mismatch: the timezone schedule times are
+# evaluated in. Without this, the DB session defaults to UTC, so a
+# schedule entered as "15:00" fires at 15:00 UTC (20:30 IST) instead of
+# 15:00 IST. This line MUST be uncommented and set for the calendar to
+# fire at the time you actually enter in the dashboard.
+SCHEDULE_TZ=Asia/Kolkata
