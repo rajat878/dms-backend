@@ -1842,7 +1842,7 @@
       const target = document.getElementById('pushTarget').value;
       if (!target){ toast('Choose a device', 'err'); return; }
       try{
-        await api(`/api/devices/${encodeURIComponent(target)}/commands`, { method:'POST', json:{ command_type:'PUSH_AD', payload:{ media_type:ad.media_type, url:ad.url } } });
+        await api(`/api/devices/${encodeURIComponent(target)}/commands`, { method:'POST', json:{ command_type:'PUSH_AD', payload:{ media_type:ad.media_type, url:ad.url, ad_id:ad.id, ad_name:ad.name, duration_seconds:ad.duration_seconds } } });
         toast('Ad pushed', 'ok'); closeModal();
       }catch(err){ toast(err.message, 'err'); }
     });
@@ -3001,7 +3001,7 @@
       const id = document.getElementById('ctlAdPick').value;
       if (!id){ toast('Choose content first', 'err'); return; }
       const ad = state.ads.find(a=>String(a.id)===id);
-      sendDeviceCommand(d.device_id, 'PUSH_AD', { media_type:ad.media_type, url:ad.url }, 'Ad pushed');
+      sendDeviceCommand(d.device_id, 'PUSH_AD', { media_type:ad.media_type, url:ad.url, ad_id:ad.id, ad_name:ad.name, duration_seconds:ad.duration_seconds }, 'Ad pushed');
     });
     document.querySelector('[data-send-install]')?.addEventListener('click', ()=>{
       const id = document.getElementById('ctlApkPick').value;

@@ -37,21 +37,22 @@ async function resolveActionPayload(actionType, storedPayload) {
   if (actionType === "PUSH_AD") {
     const adId = storedPayload?.ad_id;
     if (!adId) return null;
-    const result = await pool.query(`SELECT media_type, source, external_url FROM ads WHERE id = $1`, [adId]);
+    const result = await pool.query(`SELECT name, media_type, source, external_url, duration_seconds FROM ads WHERE id = $1`, [adId]);
     if (result.rows.length === 0) {
       console.error(`schedule fire: ad ${adId} no longer exists`);
       return null;
     }
     const ad = result.rows[0];
+    const common = { ad_id: adId, ad_name: ad.name, duration_seconds: ad.duration_seconds };
     if (ad.source === "upload") {
       const base = publicBaseUrl();
       if (!base) {
         console.error("schedule fire: PUBLIC_BASE_URL is not set — can't build a file URL for a scheduled PUSH_AD");
         return null;
       }
-      return { media_type: ad.media_type, url: `${base}/api/ads/${adId}/file` };
+      return { media_type: ad.media_type, url: `${base}/api/ads/${adId}/file`, ...common };
     }
-    return { media_type: ad.media_type, url: ad.external_url };
+    return { media_type: ad.media_type, url: ad.external_url, ...common };
   }
 
   // Every other action type's stored payload IS the command payload
