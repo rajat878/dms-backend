@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     /* ============================= DESIGN TOKENS ============================= */
     :root{
@@ -654,6 +655,7 @@
     deviceSort: { key: 'last_seen', dir: 'desc' },
     selectedDeviceIds: new Set(),
     autoRefreshTimer: null,
+    reportCharts: {},
   };
 
   const TEMPLATE_ZONES_FALLBACK = {
@@ -2545,11 +2547,12 @@
     const to = new Date();
     const from = new Date(Date.now() - 30*24*60*60*1000);
     const iso = d => d.toISOString().slice(0,10);
-    return { from: iso(from), to: iso(to), device_id:'', group_id:'' };
+    return { from: iso(from), to: iso(to), device_id:'', group_id:'', granularity:'day' };
   }
   state.reportFilters = defaultReportFilters();
   state.reportData = null;
   state.reportLoading = false;
+  state.fleetSnapshot = null;
 
   function fmtDuration(totalSeconds){
     const s = Number(totalSeconds)||0;
@@ -2572,12 +2575,20 @@
     state.reportLoading = true; renderView();
     try{
       const qs = reportQueryString();
-      const [summary, recent] = await Promise.all([
+      const tsQs = reportQueryString({ granularity: state.reportFilters.granularity || 'day' });
+      const [summary, recent, timeseries, snapshot] = await Promise.all([
         api('/api/reports/plays/summary?'+qs),
         api('/api/reports/plays?'+qs+'&limit=50'),
+        api('/api/reports/plays/timeseries?'+tsQs),
+        api('/api/reports/fleet/snapshot'),
       ]);
-      state.reportData = { ads: summary.ads, totals: summary.totals, plays: recent.plays };
-    }catch(err){ toast(err.message, 'err'); state.reportData = { ads:[], totals:{play_count:0,total_seconds:0}, plays:[] }; }
+      state.reportData = { ads: summary.ads, totals: summary.totals, plays: recent.plays, buckets: timeseries.buckets };
+      state.fleetSnapshot = snapshot;
+    }catch(err){
+      toast(err.message, 'err');
+      state.reportData = { ads:[], totals:{play_count:0,total_seconds:0}, plays:[], buckets:[] };
+      state.fleetSnapshot = null;
+    }
     state.reportLoading = false;
     renderView();
   }
@@ -2613,6 +2624,13 @@
           <div class="field" style="margin-bottom:0; min-width:150px;"><label>Group</label>
             <select id="repGroup"><option value="">All groups</option>${state.groups.map(g=>`<option value="${g.id}" ${String(f.group_id)===String(g.id)?'selected':''}>${esc(g.name)}</option>`).join('')}</select>
           </div>
+          <div class="field" style="margin-bottom:0; min-width:120px;"><label>Chart by</label>
+            <select id="repGranularity">
+              <option value="hour" ${f.granularity==='hour'?'selected':''}>Hour</option>
+              <option value="day" ${f.granularity==='day'?'selected':''}>Day</option>
+              <option value="week" ${f.granularity==='week'?'selected':''}>Week</option>
+            </select>
+          </div>
           <button class="btn btn-primary" id="repApply">${icon('refresh',13)} Apply</button>
           <button class="btn" id="repExport" style="margin-left:auto;">${icon('download',13)} Export CSV</button>
         </div>
@@ -2628,6 +2646,42 @@
         <div class="stat-card"><div class="stat-label">${icon('clock',12)} Total air time</div><div class="stat-value">${fmtDuration(d.totals.total_seconds)}</div><div class="stat-foot">across all screens</div></div>
         <div class="stat-card"><div class="stat-label">${icon('content',12)} Distinct content</div><div class="stat-value">${d.ads.length}</div><div class="stat-foot">items that played</div></div>
         <div class="stat-card"><div class="stat-label">${icon('devices',12)} Screens reporting</div><div class="stat-value">${new Set(d.plays.map(p=>p.device_id)).size || (d.ads.reduce((m,a)=>Math.max(m,a.device_count),0))}</div><div class="stat-foot">at least one play logged</div></div>
+      </div>`;
+
+    const s = state.fleetSnapshot;
+    const fleetCards = !s ? '' : `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">${icon('devices',12)} Devices online</div><div class="stat-value green">${s.devices.online}<span style="font-size:15px; color:var(--text-faint);"> / ${s.devices.total}</span></div><div class="stat-foot">right now</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('chart',12)} Plays today</div><div class="stat-value teal">${s.plays_today.toLocaleString()}</div><div class="stat-foot">since midnight, fleet timezone</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('battery',12)} Low battery</div><div class="stat-value ${s.devices.low_battery?'amber':''}">${s.devices.low_battery}</div><div class="stat-foot">below ${s.thresholds.low_battery_pct}%</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('danger',12)} Offline</div><div class="stat-value ${s.devices.offline?'red':''}">${s.devices.offline}</div><div class="stat-foot">no heartbeat in ${s.thresholds.offline_minutes}m+</div></div>
+      </div>`;
+
+    const chartsRow = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h3>Plays over time</h3><span class="text-faint" style="font-size:11.5px;">grouped by ${esc(f.granularity||'day')}</span></div>
+        <div class="card-body">
+          <div style="position:relative; height:220px;"><canvas id="repTimeseriesChart" role="img" aria-label="Line chart of plays over the selected date range"></canvas></div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div class="card">
+          <div class="card-head"><h3>Top content</h3><span class="text-faint" style="font-size:11.5px;">by play count</span></div>
+          <div class="card-body">
+            <div style="position:relative; height:${Math.max(180, Math.min(8,d.ads.length)*40+60)}px;"><canvas id="repTopContentChart" role="img" aria-label="Horizontal bar chart of top content by play count"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Device status</h3><span class="text-faint" style="font-size:11.5px;">right now</span></div>
+          <div class="card-body">
+            ${!s ? `<div class="empty-state" style="padding:20px;">${icon('devices',24)}<div class="d">Fleet snapshot unavailable</div></div>` : `
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;"><span style="display:flex; align-items:center; gap:8px; font-size:13px;"><span style="width:9px; height:9px; border-radius:50%; background:var(--green); display:inline-block;"></span>Online</span><span style="font-size:13px; font-weight:600;" class="mono">${s.devices.online}</span></div>
+              <div style="display:flex; justify-content:space-between; align-items:center;"><span style="display:flex; align-items:center; gap:8px; font-size:13px;"><span style="width:9px; height:9px; border-radius:50%; background:var(--amber); display:inline-block;"></span>Low battery</span><span style="font-size:13px; font-weight:600;" class="mono">${s.devices.low_battery}</span></div>
+              <div style="display:flex; justify-content:space-between; align-items:center;"><span style="display:flex; align-items:center; gap:8px; font-size:13px;"><span style="width:9px; height:9px; border-radius:50%; background:var(--red); display:inline-block;"></span>Offline</span><span style="font-size:13px; font-weight:600;" class="mono">${s.devices.offline}</span></div>
+            </div>`}
+          </div>
+        </div>
       </div>`;
 
     const perfTable = `
@@ -2665,7 +2719,7 @@
         </div>
       </div>`;
 
-    return filterBar + summaryCards + perfTable + recentTable;
+    return filterBar + fleetCards + summaryCards + chartsRow + perfTable + recentTable;
   }
 
   function wireReportsEvents(){
@@ -2674,10 +2728,55 @@
       state.reportFilters.to = document.getElementById('repTo').value || state.reportFilters.to;
       state.reportFilters.device_id = document.getElementById('repDevice').value;
       state.reportFilters.group_id = document.getElementById('repGroup').value;
+      state.reportFilters.granularity = document.getElementById('repGranularity').value;
       state.reportData = null;
       renderView();
     });
     document.getElementById('repExport')?.addEventListener('click', downloadReportCsv);
+    renderReportCharts();
+  }
+
+  // Destroys and rebuilds the two Chart.js instances on the Reports view.
+  // Called after every renderView() while on that section — renderView()
+  // replaces #view's innerHTML each time, which orphans any previous
+  // Chart.js instance still bound to the old <canvas>, so those must be
+  // destroyed first or Chart.js throws "Canvas is already in use".
+  function renderReportCharts(){
+    if (typeof Chart === 'undefined') return; // CDN blocked/offline — page still works, just no charts
+    Object.values(state.reportCharts).forEach(c => c?.destroy());
+    state.reportCharts = {};
+
+    const d = state.reportData;
+    if (!d) return;
+
+    const tsCanvas = document.getElementById('repTimeseriesChart');
+    if (tsCanvas && d.buckets){
+      const labels = d.buckets.map(b => {
+        const dt = new Date(b.bucket);
+        return state.reportFilters.granularity === 'hour'
+          ? dt.toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric' })
+          : dt.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+      });
+      state.reportCharts.timeseries = new Chart(tsCanvas, {
+        type: 'line',
+        data: { labels, datasets: [{ data: d.buckets.map(b=>b.play_count), borderColor:'#2dd4c8', backgroundColor:'rgba(45,212,200,0.12)', fill:true, tension:0.3, pointRadius:0, borderWidth:2 }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+          scales:{ x:{ grid:{ display:false }, ticks:{ color:'#8d99ac', maxRotation:0, autoSkip:true } },
+                   y:{ grid:{ color:'#212a37' }, ticks:{ color:'#8d99ac', precision:0 }, beginAtZero:true } } }
+      });
+    }
+
+    const topCanvas = document.getElementById('repTopContentChart');
+    if (topCanvas){
+      const top = d.ads.slice().sort((a,b)=>b.play_count-a.play_count).slice(0,8);
+      state.reportCharts.topContent = new Chart(topCanvas, {
+        type: 'bar',
+        data: { labels: top.map(a=>a.ad_name), datasets: [{ data: top.map(a=>a.play_count), backgroundColor:'#2dd4c8', borderRadius:4 }] },
+        options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+          scales:{ x:{ grid:{ color:'#212a37' }, ticks:{ color:'#8d99ac', precision:0 }, beginAtZero:true },
+                   y:{ grid:{ display:false }, ticks:{ color:'#eef2f7' } } } }
+      });
+    }
   }
 
   /* ============================= DEVICE DRAWER ============================= */

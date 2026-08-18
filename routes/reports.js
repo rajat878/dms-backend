@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { pool } = require("../db/database");
+const { computeAlerts, OFFLINE_THRESHOLD_MINUTES, LOW_BATTERY_PCT } = require("../alerts");
 
 /**
  * Proof-of-play reporting. This is what turns raw play_logs rows (written
@@ -151,6 +152,104 @@ router.get("/plays/export", async (req, res) => {
     res.send(lines.join("\n"));
   } catch (err) {
     console.error("export plays error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/reports/plays/timeseries
+// Plays bucketed by time — the line-chart feed for the dashboard. Same
+// filters as the other endpoints, plus:
+//   granularity   'hour' | 'day' | 'week'  (default: 'day')
+// date_trunc does the bucketing in the DB session's timezone (SCHEDULE_TZ,
+// see db/database.js) so "Aug 18" lines up with what an admin in that
+// timezone would call "today" — matches how schedules.js already reasons
+// about wall-clock time.
+const VALID_GRANULARITIES = new Set(["hour", "day", "week"]);
+
+router.get("/plays/timeseries", async (req, res) => {
+  try {
+    const granularity = VALID_GRANULARITIES.has(req.query.granularity) ? req.query.granularity : "day";
+    const { where, params } = buildFilters(req.query);
+
+    const result = await pool.query(
+      `
+      SELECT
+        date_trunc('${granularity}', pl.played_at) AS bucket,
+        COUNT(*)::int AS play_count,
+        COALESCE(SUM(pl.duration_seconds), 0)::int AS total_seconds,
+        COUNT(DISTINCT pl.device_id)::int AS device_count
+      FROM play_logs pl
+      JOIN devices d ON d.device_id = pl.device_id
+      WHERE ${where}
+      GROUP BY bucket
+      ORDER BY bucket
+      `,
+      params
+    );
+
+    res.json({ ok: true, granularity, buckets: result.rows });
+  } catch (err) {
+    console.error("plays timeseries error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/reports/fleet/snapshot
+// The numbers behind the dashboard's KPI cards. Unlike the plays/* endpoints
+// above, this reads from `devices` (current state) rather than `play_logs`
+// (historical events) — "how healthy is the fleet right now", not "what
+// played in a date range". Reuses alerts.js's computeAlerts() so the
+// thresholds shown here can never drift out of sync with what actually
+// triggers a webhook alert.
+router.get("/fleet/snapshot", async (req, res) => {
+  try {
+    const devicesResult = await pool.query(
+      "SELECT device_id, name, last_seen, battery, storage_free, group_id FROM devices"
+    );
+
+    let online = 0;
+    let offline = 0;
+    let lowBattery = 0;
+    let lowStorage = 0;
+    const alertsByDevice = [];
+
+    for (const device of devicesResult.rows) {
+      const alerts = computeAlerts(device);
+      const isOffline = alerts.some((a) => a.type === "offline");
+      isOffline ? offline++ : online++;
+      if (alerts.some((a) => a.type === "low_battery")) lowBattery++;
+      if (alerts.some((a) => a.type === "low_storage")) lowStorage++;
+      if (alerts.length > 0) {
+        alertsByDevice.push({ device_id: device.device_id, name: device.name, alerts });
+      }
+    }
+
+    // Plays "today" — in the DB session's timezone, same reasoning as the
+    // timeseries bucketing above, so this KPI card agrees with the chart.
+    const todayResult = await pool.query(
+      `SELECT COUNT(*)::int AS play_count
+       FROM play_logs
+       WHERE played_at >= date_trunc('day', now())`
+    );
+
+    res.json({
+      ok: true,
+      devices: {
+        total: devicesResult.rows.length,
+        online,
+        offline,
+        low_battery: lowBattery,
+        low_storage: lowStorage,
+      },
+      plays_today: todayResult.rows[0].play_count,
+      active_alerts: alertsByDevice,
+      thresholds: {
+        offline_minutes: OFFLINE_THRESHOLD_MINUTES,
+        low_battery_pct: LOW_BATTERY_PCT,
+      },
+    });
+  } catch (err) {
+    console.error("fleet snapshot error:", err);
     res.status(500).json({ ok: false, error: "internal error" });
   }
 });

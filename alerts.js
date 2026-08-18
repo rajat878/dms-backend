@@ -107,4 +107,11 @@ function startAlertMonitor() {
   setInterval(checkOnce, CHECK_INTERVAL_MS);
 }
 
-module.exports = { startAlertMonitor, getAllAlerts };
+module.exports = {
+  startAlertMonitor,
+  getAllAlerts,
+  computeAlerts,
+  OFFLINE_THRESHOLD_MINUTES,
+  LOW_BATTERY_PCT,
+  LOW_STORAGE_BYTES,
+};
