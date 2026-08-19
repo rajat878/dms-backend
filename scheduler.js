@@ -140,7 +140,29 @@ async function checkOnce() {
 
 function startScheduleRunner() {
   checkOnce();
-  setInterval(checkOnce, CHECK_INTERVAL_MS);
+  scheduleNextTick();
+}
+
+// A plain setInterval(checkOnce, CHECK_INTERVAL_MS) is phase-locked to
+// whatever moment the server process happened to boot, NOT to the wall
+// clock. If the process started at, say, 14:03:59.2, every tick for the
+// rest of that process's uptime lands at xx:xx:59.2 — a fixed, repeatable
+// offset, not random jitter. A schedule set for "15:00:00" would then
+// consistently fire ~59 seconds late, every single day, until the next
+// restart happens to land on a different phase.
+//
+// Recomputing "ms until the next real minute boundary" before every tick
+// keeps checks pinned to :00 of each minute regardless of when the
+// process started, so the worst-case drift is bounded by how long
+// checkOnce() itself takes to run (milliseconds), not by boot-time luck.
+function scheduleNextTick() {
+  const interval = CHECK_INTERVAL_MS > 0 ? CHECK_INTERVAL_MS : 60 * 1000;
+  const now = Date.now();
+  const msUntilNextBoundary = interval - (now % interval);
+  setTimeout(async () => {
+    await checkOnce();
+    scheduleNextTick();
+  }, msUntilNextBoundary);
 }
 
 module.exports = { startScheduleRunner };
