@@ -850,7 +850,16 @@
     buildNav();
     loadAll(true);
     setInterval(()=>{ document.getElementById('topbarClock').textContent = new Date().toLocaleTimeString(); }, 1000);
-    state.autoRefreshTimer = setInterval(()=>loadAll(false), 30000);
+    state.autoRefreshTimer = setInterval(()=>{
+      loadAll(false);
+      // Actions report is meant to read as "live" — an admin who just
+      // fired an action should see it show up, then watch its status flip
+      // from pending -> delivered -> done in place, without hitting Apply.
+      // Piggyback on the existing 30s tick rather than a second timer.
+      if (state.section === 'reports' && state.reportSubTab === 'actions' && !state.actionReportLoading){
+        loadActionReportData(true);
+      }
+    }, 30000);
   }
 
   (function boot(){
@@ -2553,6 +2562,35 @@
   state.reportData = null;
   state.reportLoading = false;
   state.fleetSnapshot = null;
+  state.reportSubTab = 'plays'; // 'plays' (proof-of-play) | 'actions' (command/action log)
+
+  // Actions report uses the same date/device/group filters as plays, plus
+  // its own command_type/status filters — kept as a separate object so
+  // switching sub-tabs never clobbers the other tab's filter selections.
+  function defaultActionFilters(){
+    const base = defaultReportFilters();
+    return { ...base, command_type:'', status:'' };
+  }
+  state.actionReportFilters = defaultActionFilters();
+  state.actionReportData = null;
+  state.actionReportLoading = false;
+
+  // Every command_type the backend/agent actually issue, for the filter
+  // dropdown. Kept as a flat list here rather than reusing
+  // SCHEDULE_ACTION_TYPES since a few commands (ACK-only, screen-share
+  // control messages) aren't schedulable but still show up in the log.
+  const ACTION_COMMAND_TYPES = [
+    'REBOOT','LOCK_DEVICE','UNLOCK_DEVICE','SEND_MESSAGE','SET_VOLUME','SET_BRIGHTNESS',
+    'MUTE','UNMUTE','OPEN_APP','INSTALL_APK','PUSH_AD','CLEAR_AD','REFRESH_CONTENT',
+    'START_SCREEN_SHARE','STOP_SCREEN_SHARE','SET_REPORT_INTERVAL','INPUT_EVENT'
+  ];
+  const ACTION_STATUS_META = {
+    pending:   { badge:'b-gray',  label:'Pending'   },
+    delivered: { badge:'b-blue',  label:'Delivered' },
+    done:      { badge:'b-green', label:'Done'      },
+    failed:    { badge:'b-red',   label:'Failed'    },
+    cancelled: { badge:'b-amber', label:'Cancelled' },
+  };
 
   function fmtDuration(totalSeconds){
     const s = Number(totalSeconds)||0;
@@ -2608,7 +2646,176 @@
     }catch(err){ toast(err.message, 'err'); }
   }
 
+  /* ---------- Actions report (command/action log) ---------- */
+  function actionReportQueryString(extra){
+    const f = state.actionReportFilters;
+    const params = new URLSearchParams();
+    if (f.from) params.set('from', f.from + 'T00:00:00.000Z');
+    if (f.to) params.set('to', f.to + 'T23:59:59.999Z');
+    if (f.device_id) params.set('device_id', f.device_id);
+    if (f.group_id) params.set('group_id', f.group_id);
+    if (f.command_type) params.set('command_type', f.command_type);
+    if (f.status) params.set('status', f.status);
+    Object.entries(extra||{}).forEach(([k,v])=>params.set(k,v));
+    return params.toString();
+  }
+  // silent=true skips the loading-skeleton flash — used by the 30s
+  // background poll so a row's status updating from pending -> done
+  // doesn't visibly blank the table out from under the admin.
+  async function loadActionReportData(silent){
+    if (!silent){ state.actionReportLoading = true; renderView(); }
+    try{
+      const qs = actionReportQueryString();
+      const [list, summary] = await Promise.all([
+        api('/api/reports/actions?'+qs+'&limit=100'),
+        api('/api/reports/actions/summary?'+qs),
+      ]);
+      state.actionReportData = { actions: list.actions, action_types: summary.action_types, totals: summary.totals };
+    }catch(err){
+      if (!silent) toast(err.message, 'err');
+      if (!state.actionReportData) state.actionReportData = { actions:[], action_types:[], totals:{total_count:0} };
+    }
+    state.actionReportLoading = false;
+    if (state.section === 'reports' && state.reportSubTab === 'actions') renderView();
+  }
+  async function downloadActionReportCsv(){
+    const headers = {};
+    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    try{
+      const res = await fetch(state.base + '/api/reports/actions/export?' + actionReportQueryString(), { headers });
+      if (!res.ok) throw new Error('export failed (HTTP ' + res.status + ')');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `action-log-${state.actionReportFilters.from}_to_${state.actionReportFilters.to}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('CSV downloaded', 'ok');
+    }catch(err){ toast(err.message, 'err'); }
+  }
+  // Short, human label for what a command actually did — reuses the same
+  // per-type describe() functions the Calendar view already has for
+  // action schedules, so "Push 'Summer Sale'" reads the same whether it
+  // fired from a schedule or was issued directly from a device drawer.
+  function actionSummaryLabel(a){
+    const def = (typeof actionTypeDef === 'function') ? actionTypeDef(a.command_type) : null;
+    if (def && def.describe){
+      try{ return def.describe({ action_payload: a.payload, action_ad_name: a.payload?.ad_name, action_apk_name: a.payload?.apk_name }); }
+      catch(e){ /* fall through to generic label below */ }
+    }
+    if (def) return def.label;
+    return a.command_type;
+  }
+
   function renderReports(){
+    const subTabBar = `
+      <div class="drawer-tabs" style="padding:0 0 0 0; margin-bottom:16px; border-radius:8px; border:1px solid var(--border);">
+        <div class="drawer-tab ${state.reportSubTab==='plays'?'active':''}" data-report-subtab="plays" style="padding:11px 16px; margin-right:0;">${icon('chart',13)} Content plays</div>
+        <div class="drawer-tab ${state.reportSubTab==='actions'?'active':''}" data-report-subtab="actions" style="padding:11px 16px; margin-right:0;">${icon('spark',13)} Actions</div>
+      </div>`;
+    if (state.reportSubTab === 'actions') return subTabBar + renderActionsReport();
+    return subTabBar + renderPlaysReport();
+  }
+
+  function renderActionsReport(){
+    if (!state.actionReportData && !state.actionReportLoading){ loadActionReportData(false); }
+    const d = state.actionReportData;
+    const f = state.actionReportFilters;
+
+    const filterBar = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+          <div class="field" style="margin-bottom:0;"><label>From</label><input type="date" id="actFrom" value="${esc(f.from)}"></div>
+          <div class="field" style="margin-bottom:0;"><label>To</label><input type="date" id="actTo" value="${esc(f.to)}"></div>
+          <div class="field" style="margin-bottom:0; min-width:170px;"><label>Device</label>
+            <select id="actDevice"><option value="">All devices</option>${state.devices.map(dv=>`<option value="${esc(dv.device_id)}" ${f.device_id===dv.device_id?'selected':''}>${esc(deviceLabel(dv))}</option>`).join('')}</select>
+          </div>
+          <div class="field" style="margin-bottom:0; min-width:150px;"><label>Group</label>
+            <select id="actGroup"><option value="">All groups</option>${state.groups.map(g=>`<option value="${g.id}" ${String(f.group_id)===String(g.id)?'selected':''}>${esc(g.name)}</option>`).join('')}</select>
+          </div>
+          <div class="field" style="margin-bottom:0; min-width:150px;"><label>Action type</label>
+            <select id="actType"><option value="">All types</option>${ACTION_COMMAND_TYPES.map(t=>`<option value="${t}" ${f.command_type===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
+          </div>
+          <div class="field" style="margin-bottom:0; min-width:130px;"><label>Status</label>
+            <select id="actStatus"><option value="">All statuses</option>${Object.entries(ACTION_STATUS_META).map(([k,m])=>`<option value="${k}" ${f.status===k?'selected':''}>${m.label}</option>`).join('')}</select>
+          </div>
+          <button class="btn btn-primary" id="actApply">${icon('refresh',13)} Apply</button>
+          <button class="btn" id="actExport" style="margin-left:auto;">${icon('download',13)} Export CSV</button>
+        </div>
+      </div>`;
+
+    if (state.actionReportLoading || !d){
+      return filterBar + `<div class="card"><div class="card-body"><div class="skel" style="height:220px;"></div></div></div>`;
+    }
+
+    const pendingLive = d.actions.filter(a=>a.status==='pending'||a.status==='delivered').length;
+
+    const summaryCards = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">${icon('spark',12)} Total actions</div><div class="stat-value teal">${d.totals.total_count.toLocaleString()}</div><div class="stat-foot">in selected range</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('clock',12)} In progress</div><div class="stat-value ${pendingLive?'amber':''}">${pendingLive}</div><div class="stat-foot">pending / delivered, not yet finished</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('content',12)} Action types used</div><div class="stat-value">${d.action_types.length}</div><div class="stat-foot">distinct commands issued</div></div>
+        <div class="stat-card"><div class="stat-label">${icon('devices',12)} Devices targeted</div><div class="stat-value">${new Set(d.actions.map(a=>a.device_id)).size}</div><div class="stat-foot">received at least one action</div></div>
+      </div>`;
+
+    const typeTable = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h3>By action type</h3><span class="count">${d.action_types.length} type${d.action_types.length===1?'':'s'}</span></div>
+        <div class="card-body pad0 table-wrap">
+          <table><thead><tr><th>Action</th><th class="num">Total</th><th class="num">Pending</th><th class="num">Delivered</th><th class="num">Done</th><th class="num">Failed</th><th class="num">Cancelled</th><th class="num">Devices</th><th>Last issued</th></tr></thead>
+          <tbody>${d.action_types.map(t=>`
+            <tr>
+              <td class="cell-primary">${esc(t.command_type)}</td>
+              <td class="num mono">${t.total_count}</td>
+              <td class="num mono">${t.pending_count||''}</td>
+              <td class="num mono">${t.delivered_count||''}</td>
+              <td class="num mono">${t.done_count||''}</td>
+              <td class="num mono" style="${t.failed_count?'color:var(--red);':''}">${t.failed_count||''}</td>
+              <td class="num mono">${t.cancelled_count||''}</td>
+              <td class="num mono">${t.device_count}</td>
+              <td class="text-dim">${fmtDate(t.last_issued_at)}</td>
+            </tr>`).join('') || `<tr><td colspan="9"><div class="empty-state">${icon('spark',28)}<div class="t">No actions in this range</div><div class="d">Reboot, lock, push ad, install, and every other command issued from the dashboard shows up here the instant it's sent.</div></div></td></tr>`}</tbody></table>
+        </div>
+      </div>`;
+
+    const recentTable = `
+      <div class="card">
+        <div class="card-head"><h3>Recent activity</h3><span class="count">last ${d.actions.length} · live, refreshes automatically</span></div>
+        <div class="card-body pad0 table-wrap">
+          <table><thead><tr><th>Started</th><th>Device</th><th>Action</th><th>Status</th><th>Finished</th><th>Result</th></tr></thead>
+          <tbody>${d.actions.map(a=>{
+            const meta = ACTION_STATUS_META[a.status] || { badge:'b-gray', label:a.status };
+            return `
+            <tr>
+              <td class="text-dim mono" style="font-size:11.5px;">${fmtDate(a.created_at)}</td>
+              <td>${esc(a.device_name || a.device_id)}</td>
+              <td>${esc(actionSummaryLabel(a))}</td>
+              <td><span class="badge ${meta.badge}">${meta.label}</span></td>
+              <td class="text-dim mono" style="font-size:11.5px;">${a.completed_at ? fmtDate(a.completed_at) : '—'}</td>
+              <td class="text-dim" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(a.result||'')}">${esc(a.result||'—')}</td>
+            </tr>`;
+          }).join('') || `<tr><td colspan="6"><div class="empty-state" style="padding:28px;">${icon('clock',24)}<div class="t">Nothing yet</div></div></td></tr>`}</tbody></table>
+        </div>
+      </div>`;
+
+    return filterBar + summaryCards + typeTable + recentTable;
+  }
+
+  function wireActionsReportEvents(){
+    document.getElementById('actApply')?.addEventListener('click', ()=>{
+      state.actionReportFilters.from = document.getElementById('actFrom').value || state.actionReportFilters.from;
+      state.actionReportFilters.to = document.getElementById('actTo').value || state.actionReportFilters.to;
+      state.actionReportFilters.device_id = document.getElementById('actDevice').value;
+      state.actionReportFilters.group_id = document.getElementById('actGroup').value;
+      state.actionReportFilters.command_type = document.getElementById('actType').value;
+      state.actionReportFilters.status = document.getElementById('actStatus').value;
+      state.actionReportData = null;
+      renderView();
+    });
+    document.getElementById('actExport')?.addEventListener('click', downloadActionReportCsv);
+  }
+
+  function renderPlaysReport(){
     if (!state.reportData && !state.reportLoading){ loadReportData(); }
     const d = state.reportData;
     const f = state.reportFilters;
@@ -2723,6 +2930,18 @@
   }
 
   function wireReportsEvents(){
+    document.querySelectorAll('[data-report-subtab]').forEach(el=>el.addEventListener('click', ()=>{
+      const tab = el.dataset.reportSubtab;
+      if (tab === state.reportSubTab) return;
+      state.reportSubTab = tab;
+      renderView();
+    }));
+
+    if (state.reportSubTab === 'actions'){
+      wireActionsReportEvents();
+      return;
+    }
+
     document.getElementById('repApply')?.addEventListener('click', ()=>{
       state.reportFilters.from = document.getElementById('repFrom').value || state.reportFilters.from;
       state.reportFilters.to = document.getElementById('repTo').value || state.reportFilters.to;

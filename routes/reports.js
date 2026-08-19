@@ -254,4 +254,174 @@ router.get("/fleet/snapshot", async (req, res) => {
   }
 });
 
+/**
+ * Action/command reporting. Every command the admin ever issues (reboot,
+ * lock, push ad, install app, screen share, etc.) is already recorded in
+ * `commands` the instant it's created (status='pending', created_at=NOW())
+ * and updated IN PLACE on the same row as it moves through its lifecycle:
+ *   pending -> delivered (FCM push reached the device / picked up on
+ *              next heartbeat) -> done | failed (device executed it and
+ *              acked, see POST /:device_id/commands/:id/ack) or cancelled
+ *              (admin/bulk-stop cancelled it before delivery)
+ * So "recorded immediately, updated when it stops" is already true of the
+ * underlying data — these endpoints just expose it the same way
+ * plays/* exposes play_logs, instead of it being buried in each device's
+ * detail-panel history (capped at 20 rows, no filtering, no export).
+ *
+ * Shares the same optional filters as the plays/* endpoints:
+ *   from, to        ISO date/datetime bounds on created_at (default: last 30 days)
+ *   device_id       restrict to one device
+ *   group_id        restrict to every device currently in one group
+ *   command_type    restrict to one action type (e.g. 'REBOOT', 'PUSH_AD')
+ *   status          restrict to one status (pending|delivered|done|failed|cancelled)
+ */
+function buildActionFilters(query) {
+  const clauses = [];
+  const params = [];
+
+  const from = query.from ? new Date(query.from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const to = query.to ? new Date(query.to) : new Date();
+  params.push(from.toISOString());
+  clauses.push(`c.created_at >= $${params.length}`);
+  params.push(to.toISOString());
+  clauses.push(`c.created_at <= $${params.length}`);
+
+  if (query.device_id) {
+    params.push(query.device_id);
+    clauses.push(`c.device_id = $${params.length}`);
+  }
+  if (query.group_id) {
+    params.push(Number(query.group_id));
+    clauses.push(`d.group_id = $${params.length}`);
+  }
+  if (query.command_type) {
+    params.push(query.command_type);
+    clauses.push(`c.command_type = $${params.length}`);
+  }
+  if (query.status) {
+    params.push(query.status);
+    clauses.push(`c.status = $${params.length}`);
+  }
+
+  return { where: clauses.join(" AND "), params };
+}
+
+// GET /api/reports/actions
+// Raw, paginated action/command events for the "recent activity" list —
+// newest first. Each row is live: a row for a still-pending or
+// still-delivered command will show status flip to done/failed on refresh,
+// same row, no new row created — matches how the dashboard's device drawer
+// already behaves, just fleet-wide and filterable/exportable here.
+router.get("/actions", async (req, res) => {
+  try {
+    const { where, params } = buildActionFilters(req.query);
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    params.push(limit);
+    params.push(offset);
+
+    const result = await pool.query(
+      `
+      SELECT c.id, c.device_id, d.name AS device_name, g.name AS group_name,
+             c.command_type, c.payload, c.status, c.result,
+             c.created_at, c.delivered_at, c.completed_at
+      FROM commands c
+      JOIN devices d ON d.device_id = c.device_id
+      LEFT JOIN groups g ON g.id = d.group_id
+      WHERE ${where}
+      ORDER BY c.created_at DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+      `,
+      params
+    );
+
+    res.json({ ok: true, actions: result.rows });
+  } catch (err) {
+    console.error("list actions error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/reports/actions/summary
+// One row per command_type: how many times it was issued, and a breakdown
+// of where each one currently sits in its lifecycle. The "did my fleet
+// actually receive/run this" answer, mirroring plays/summary's "did my
+// campaign run" role for ads.
+router.get("/actions/summary", async (req, res) => {
+  try {
+    const { where, params } = buildActionFilters(req.query);
+    const result = await pool.query(
+      `
+      SELECT
+        c.command_type,
+        COUNT(*)::int AS total_count,
+        COUNT(*) FILTER (WHERE c.status = 'pending')::int AS pending_count,
+        COUNT(*) FILTER (WHERE c.status = 'delivered')::int AS delivered_count,
+        COUNT(*) FILTER (WHERE c.status = 'done')::int AS done_count,
+        COUNT(*) FILTER (WHERE c.status = 'failed')::int AS failed_count,
+        COUNT(*) FILTER (WHERE c.status = 'cancelled')::int AS cancelled_count,
+        COUNT(DISTINCT c.device_id)::int AS device_count,
+        MIN(c.created_at) AS first_issued_at,
+        MAX(c.created_at) AS last_issued_at
+      FROM commands c
+      JOIN devices d ON d.device_id = c.device_id
+      WHERE ${where}
+      GROUP BY c.command_type
+      ORDER BY total_count DESC
+      `,
+      params
+    );
+
+    const totals = result.rows.reduce((acc, r) => ({ total_count: acc.total_count + r.total_count }), { total_count: 0 });
+
+    res.json({ ok: true, action_types: result.rows, totals });
+  } catch (err) {
+    console.error("actions summary error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
+// GET /api/reports/actions/export
+// Full CSV of every matching action — an audit trail you can hand to
+// someone showing exactly what was done, on what device, by when, and
+// its outcome. Same 50k row cap/reasoning as plays/export.
+router.get("/actions/export", async (req, res) => {
+  try {
+    const { where, params } = buildActionFilters(req.query);
+    const result = await pool.query(
+      `
+      SELECT c.created_at, c.delivered_at, c.completed_at, d.name AS device_name,
+             c.device_id, g.name AS group_name, c.command_type, c.payload,
+             c.status, c.result
+      FROM commands c
+      JOIN devices d ON d.device_id = c.device_id
+      LEFT JOIN groups g ON g.id = d.group_id
+      WHERE ${where}
+      ORDER BY c.created_at ASC
+      LIMIT 50000
+      `,
+      params
+    );
+
+    const escapeCsv = (v) => {
+      if (v == null) return "";
+      const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["created_at", "delivered_at", "completed_at", "device_name", "device_id", "group_name", "command_type", "payload", "status", "result"];
+    const lines = [header.join(",")];
+    for (const row of result.rows) {
+      lines.push(header.map((col) => escapeCsv(row[col])).join(","));
+    }
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="action-log-${Date.now()}.csv"`);
+    res.send(lines.join("\n"));
+  } catch (err) {
+    console.error("export actions error:", err);
+    res.status(500).json({ ok: false, error: "internal error" });
+  }
+});
+
 module.exports = router;
